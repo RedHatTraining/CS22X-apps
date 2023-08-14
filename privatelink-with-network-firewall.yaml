@@ -1,0 +1,673 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates the AWS PrivateLink networking infrastructure resources
+  required to support a private Red Hat OpenShift on AWS (ROSA) cluster.
+
+Parameters:
+  pRosaClusterName:
+    MinLength: 4
+    MaxLength: 15
+    AllowedPattern: "[a-z][-a-z0-9]*[a-z0-9]"
+    Default: cs220-cluster
+    Description: >
+      Name of the ROSA cluster that you will create.
+      That parameter is used to tag the AWS resources that this template
+      creates.
+    ConstraintDescription: >
+      A cluster name must consist of no more than 15 lowercase alphanumeric
+      characters or '-', start with a letter, and end with an alphanumeric
+      character.
+    Type: String
+  pNumberOfAZs:
+    Type: Number
+    AllowedValues:
+      - 1
+      - 3
+    Default: 1
+    Description: >
+      Number of Availability Zones (AZ).
+      The number of Availability Zones for a Multi-AZ ROSA cluster must be 3.
+  pRosaVpcCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.1.0.0/16
+    Description: >
+      Private VPC CIDR block (10.1.0.0/16 for example).
+      The ROSA cluster is created in that private VPC.
+      Minimum value is /25 for a Single-AZ deployment and /24 for a Multi-AZ
+      deployment.
+    Type: String
+  pRosaVpcSubnetACidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.1.1.0/24
+    Description: >
+      CIDR block for the first private subnet in the private VPC
+      (10.1.1.0/24 for example).
+    Type: String
+  pRosaVpcSubnetBCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.1.2.0/24
+    Description: >
+      For a Multi-AZ deployment, CIDR block for the second private subnet in
+      the private VPC (10.1.2.0/24 for example).
+      Required if pNumberOfAZs is 3.
+    Type: String
+  pRosaVpcSubnetCCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.1.3.0/24
+    Description: >
+      For a Multi-AZ deployment, CIDR block for the third private subnet in
+      the private VPC (10.1.3.0/24 for example).
+      Required if pNumberOfAZs is 3.
+    Type: String
+  pEgressVpcCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.0.0.0/16
+    Description: Egress VPC CIDR block (10.0.0.0/16 for example).
+    Type: String
+  pEgressVpcPrivateSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.0.1.0/24
+    Description: >
+      CIDR block for the private subnet in the Egress VPC
+      (10.9.1.0/24 for example).
+    Type: String
+  pEgressVpcPublicSubnetACidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.0.2.0/24
+    Description: >
+      CIDR block for the public subnet in the Egress VPC
+      (10.0.2.0/24 for example).
+    Type: String
+
+Conditions:
+  # Whether a Multi-AZ ROSA cluster is going to be created
+  cMultiAZ: !Equals [!Ref pNumberOfAZs, 3]
+
+Resources:
+  # ROSA Private VPC
+  rRosaVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: pRosaVpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc']]
+  # Private subnets in the private VPC
+  rRosaVpcSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: rRosaVpc
+      CidrBlock:
+        Ref: pRosaVpcSubnetACidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-subnet-a']]
+  rRosaVpcSubnetB:
+    Type: AWS::EC2::Subnet
+    Condition: cMultiAZ
+    Properties:
+      VpcId:
+        Ref: rRosaVpc
+      CidrBlock:
+        Ref: pRosaVpcSubnetBCidrBlock
+      # Uses the second AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-subnet-b']]
+  rRosaVpcSubnetC:
+    Type: AWS::EC2::Subnet
+    Condition: cMultiAZ
+    Properties:
+      VpcId:
+        Ref: rRosaVpc
+      CidrBlock:
+        Ref: pRosaVpcSubnetCCidrBlock
+      # Uses the third AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 2
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-subnet-c']]
+
+  # Egress VPC
+  rEgressVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: pEgressVpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-vpc']]
+  # Private subnet in the egress VPC
+  rEgressVpcPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      CidrBlock:
+        Ref: pEgressVpcPrivateSubnetCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-private-subnet']]
+  # Public subnet in the egress VPC
+  rEgressVpcPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      CidrBlock:
+        Ref: pEgressVpcPublicSubnetACidrBlock
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-subnet']]
+  # Internet gateway
+  rInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-igw']]
+  rInternetGatewayEgressAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      InternetGatewayId:
+        Ref: rInternetGateway
+  # NAT gateway
+  rElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-nat-eip']]
+  rNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - rElasticIP
+          - AllocationId
+      SubnetId:
+        Ref: rEgressVpcPublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-nat']]
+
+  # Network Firewall
+  rEgressFirewall:
+    Type: AWS::NetworkFirewall::Firewall
+    Properties:
+      FirewallName: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
+      VpcId: !Ref rEgressVpc
+      SubnetMappings:
+        - SubnetId: !Ref rEgressVpcPrivateSubnet
+      DeleteProtection: false
+      FirewallPolicyChangeProtection: false
+      SubnetChangeProtection: false
+      Tags:
+        - Key: "Name"
+          Value: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
+      Description: Network Firewall for Egress VPC
+      FirewallPolicyArn: !Ref rEgressFirewallPolicy
+
+  rEgressFirewallPolicy:
+    Type: AWS::NetworkFirewall::FirewallPolicy
+    Properties:
+      FirewallPolicyName: !Join ['', [!Ref pRosaClusterName, '-firewall-policy']]
+      FirewallPolicy:
+        StatelessDefaultActions:
+          - "aws:forward_to_sfe"
+        StatelessFragmentDefaultActions:
+          - "aws:forward_to_sfe"      
+        StatefulRuleGroupReferences:
+          - ResourceArn: !Ref rEgressFirewallRuleGroup
+      Description: Stateful rule group for Network Firewall
+
+  rEgressFirewallRuleGroup:
+    Type: "AWS::NetworkFirewall::RuleGroup"
+    Properties:
+      Capacity: "100"
+      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group']]
+      Type: "STATEFUL"
+      Tags:
+        - Key: "Name"
+          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group']]
+      RuleGroup:
+        RulesSource:
+          RulesSourceList:
+            TargetTypes:
+              - "TLS_SNI"
+              - "HTTP_HOST"
+            Targets:
+              - "registry.redhat.io"
+              - ".quay.io"
+              - "sso.redhat.com"
+              - "quay-registry.s3.amazonaws.com"
+              - "ocm-quay-production-s3.s3.amazonaws.com"
+              - "quayio-production-s3.s3.amazonaws.com"
+              - "cart-rhcos-ci.s3.amazonaws.com"
+              - "openshift.org"
+              - "registry.access.redhat.com"
+              - "registry.connect.redhat.com"
+              - "pull.q1w2.quay.rhcloud.com"
+              - ".q1w2.quay.rhcloud.com"
+              - "www.okd.io"
+              - "www.redhat.com"
+              - "aws.amazon.com"
+              - "catalog.redhat.com"
+              - "cert-api.access.redhat.com"
+              - "api.access.redhat.com"
+              - "infogw.api.openshift.com"
+              - "console.redhat.com"
+              - "cloud.redhat.com"
+              - "observatorium-mst.api.openshift.com"
+              - "observatorium.api.openshift.com"
+              - ".amazonaws.com"
+              - "mirror.openshift.com"
+              - "storage.googleapis.com"
+              - "api.openshift.com"
+              - "api.pagerduty.com"
+              - "events.pagerduty.com"
+              - "api.deadmanssnitch.com"
+              - "nosnch.in"
+              - ".osdsecuritylogs.splunkcloud.com"
+              - "http-inputs-osdsecuritylogs.splunkcloud.com"
+              - "sftp.access.redhat.com"
+            GeneratedRulesType: "ALLOWLIST"
+
+  # Transit gateway
+  rTransitGateway:
+    Type: AWS::EC2::TransitGateway
+    Properties:
+      AutoAcceptSharedAttachments: disable
+      DnsSupport: enable
+      DefaultRouteTableAssociation: enable
+      DefaultRouteTablePropagation: enable
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-tgw']]
+  rRosaTransitGatewayAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - Ref: rRosaVpcSubnetA
+        - !If [cMultiAZ, Ref: rRosaVpcSubnetB, !Ref "AWS::NoValue"]
+        - !If [cMultiAZ, Ref: rRosaVpcSubnetC, !Ref "AWS::NoValue"]
+      TransitGatewayId:
+        Ref: rTransitGateway
+      VpcId:
+        Ref: rRosaVpc
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-tgw-private-attachment']]
+  rEgressTransitGatewayAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - Ref: rEgressVpcPrivateSubnet
+      TransitGatewayId:
+        Ref: rTransitGateway
+      VpcId:
+        Ref: rEgressVpc
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-tgw-egress-attachment']]
+
+  # Transit gateway route table
+  rTransitGatewayRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId:
+        Ref: rTransitGateway
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-tgw-rt']]
+  rEgressTransitGatewayRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: rEgressTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayRouteTable
+  rRosaTransitGatewayRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: rRosaTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayRouteTable
+  # Default route (internet) to the private subnet of the Egress VPC
+  rEgressTransitGatewayRoute1:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayAttachmentId:
+        Ref: rEgressTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayRouteTable
+  # Route to the Egress VPC
+  rEgressTransitGatewayRoute2:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      DestinationCidrBlock:
+        Ref: pEgressVpcCidrBlock
+      TransitGatewayAttachmentId:
+        Ref: rEgressTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayRouteTable
+  # Route to the ROSA private VPC
+  rEgressTransitGatewayRoute3:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      DestinationCidrBlock:
+        Ref: pRosaVpcCidrBlock
+      TransitGatewayAttachmentId:
+        Ref: rRosaTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayRouteTable
+
+  # Egress VPC private subnet route table
+  rEgressPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-private-rt']]
+  rEgressPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: rEgressVpcPrivateSubnet
+      RouteTableId:
+        Ref: rEgressPrivateRouteTable
+  # Default route (internet) from the private subnet to the NAT gateway
+  rEgressPrivateToNATRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: rEgressPrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: rNATGateway
+
+  # Egress VPC public subnet route table
+  rEgressVpcPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-rt']]
+  rEgressPublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: rEgressVpcPublicSubnet
+      RouteTableId:
+        Ref: rEgressVpcPublicRouteTable
+  # Default route (internet) from the public subnet to the Internet gateway
+  rEgressPrivateToIGWRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: rEgressVpcPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: rInternetGateway
+  # Traffic to the ROSA private VPC goes through the Transit Gateway
+  rEgressPrivateToTGWRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rEgressTransitGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: rEgressVpcPublicRouteTable
+      DestinationCidrBlock:
+        Ref: pRosaVpcCidrBlock
+      TransitGatewayId:
+        Ref: rTransitGateway
+
+  # ROSA private VPC route table
+  rRosaVpcRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rRosaVpc
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-rt']]
+  rRosaVpcSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: rRosaVpcSubnetA
+      RouteTableId:
+        Ref: rRosaVpcRouteTable
+  rRosaVpcSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: cMultiAZ
+    Properties:
+      SubnetId:
+        Ref: rRosaVpcSubnetB
+      RouteTableId:
+        Ref: rRosaVpcRouteTable
+  rRosaVpcSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: cMultiAZ
+    Properties:
+      SubnetId:
+        Ref: rRosaVpcSubnetC
+      RouteTableId:
+        Ref: rRosaVpcRouteTable
+  # Default route (internet) to the Transit gateway
+  rRosaToTGWRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rRosaTransitGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: rRosaVpcRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      TransitGatewayId:
+        Ref: rTransitGateway
+
+Outputs:
+  oStackName:
+    Description: Name of the stack
+    Value:
+      Ref: AWS::StackName
+  oRosaClusterName:
+    Description: >
+      Name of the ROSA cluster to create. Use that name for the --cluster-name
+      option of the "rosa create cluster" command.
+    Value:
+      Ref: pRosaClusterName
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", RosaClusterName]]
+  oRosaVpc:
+    Description: ROSA private VPC
+    Value:
+      Ref: rRosaVpc
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", RosaVpc]]
+  oRosaVpcCIDR:
+    Description: >
+      ROSA private VPC CIDR block. Use that CIDR block for the --machine-cidr
+      option of the "rosa create cluster" command.
+    Value: !GetAtt rRosaVpc.CidrBlock
+  oRosaVpcSubnetA:
+    Description: >
+      Private subnet in the ROSA private VPC. Use that ID for the --subnet-ids
+      option of the "rosa create cluster" command.
+    Value:
+      Ref: rRosaVpcSubnetA
+  oRosaVpcSubnetB:
+    Condition: cMultiAZ
+    Description: >
+      Second private subnet in the ROSA private VPC. Append that ID to the
+      --subnet-ids option of the "rosa create cluster" command.
+    Value:
+      Ref: rRosaVpcSubnetB
+  oRosaVpcSubnetC:
+    Condition: cMultiAZ
+    Description: >
+       Third private subnet in the ROSA private VPC. Append that ID to the
+       --subnet-ids option of the "rosa create cluster" command.
+    Value:
+      Ref: rRosaVpcSubnetC
+  oEgressVpc:
+    Description: Egress VPC
+    Value:
+      Ref: rEgressVpc
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", EgressVpc]]
+  oEgressVpcCIDR:
+    Description: Egress VPC CIDR block
+    Value: !GetAtt rEgressVpc.CidrBlock
+  oEgressVpcPrivateSubnet:
+    Description: Private subnet in the Egress VPC
+    Value:
+      Ref: rEgressVpcPrivateSubnet
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", EgressVpcPrivateSubnet]]
+  oEgressVpcPublicSubnet:
+    Description: Public subnet in the Egress VPC
+    Value:
+      Ref: rEgressVpcPublicSubnet
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", EgressVpcPublicSubnet]]
+  oEgressFirewall:
+    Description: Network Firewall for Egress VPC
+    Value: !Ref rEgressFirewall
+  oEgressFirewallPolicy:
+    Description: Stateful rule group for Network Firewall
+    Value: !Ref rEgressFirewallPolicy
+  oEgressFirewallRuleGroup:
+    Description: Rule group for Network Firewall
+    Value: !Ref rEgressFirewallRuleGroup
+  oInternetGateway:
+    Description: Internet gateway in the Egress VPC
+    Value:
+      Ref: rInternetGateway
+  oInternetGatewayEgressAttachment:
+    Description: Internet gateway attachement to the Egress VPC
+    Value:
+      Ref: rInternetGatewayEgressAttachment
+  oNAT:
+    Description: NAT gateway in the Egress VPC
+    Value:
+      Ref: rNATGateway
+  oEIP:
+    Description: Elastic IP for the NAT gateway in the Egress VPC
+    Value:
+      Ref: rElasticIP
+  oTransitGateway:
+    Description: Transit gateway that connects the two VPCs
+    Value:
+      Ref: rTransitGateway
+  oPrivateTransitGatewayAttachment:
+    Description: Transit gateway attachement to the ROSA private VPC
+    Value:
+      Ref: rRosaTransitGatewayAttachment
+  oEgressTransitGatewayAttachment:
+    Description: Transit gateway attachement to the Egress VPC
+    Value:
+      Ref: rEgressTransitGatewayAttachment
+  oTransitGatewayRouteTable:
+    Description: Transit gateway route table
+    Value:
+      Ref: rTransitGatewayRouteTable
+  oEgressTransitGatewayRoute1:
+    Description: Transit gateway route to the internet (0.0.0.0/0)
+    Value:
+      Ref: rEgressTransitGatewayRoute1
+  oEgressTransitGatewayRoute2:
+    Description: Transit gateway route to the Egress VPC
+    Value:
+      Ref: rEgressTransitGatewayRoute2
+  oEgressTransitGatewayRoute3:
+    Description: Transit gateway route to the ROSA private VPC
+    Value:
+      Ref: rEgressTransitGatewayRoute3
+  oEgressPrivateRouteTable:
+    Description: Egress VPC route table for the private subnet
+    Value:
+      Ref: rEgressPrivateRouteTable
+  oEgressPrivateRouteTableAssociation:
+    Description: Egress VPC route table association with the private subnet
+    Value:
+      Ref: rEgressPrivateRouteTableAssociation
+  oEgressPrivateToNATRoute:
+    Description: >
+      Route from the private subnet to the internet (0.0.0.0/0)
+      via the NAT gateway
+    Value:
+      Ref: rEgressPrivateToNATRoute
+  oEgressVpcPublicRouteTable:
+    Description: Egress VPC route table for the public subnet
+    Value:
+      Ref: rEgressVpcPublicRouteTable
+  oPublicSubnetARouteTableAssociation:
+    Description: Egress VPC route table association with the public subnet
+    Value:
+      Ref: rEgressPublicSubnetARouteTableAssociation
+  oEgressPrivateToIGWRoute:
+    Description: >
+      Route from the public subnet to the internet (0.0.0.0/0)
+      via the Internet gateway
+    Value:
+      Ref: rEgressPrivateToIGWRoute
+  oEgressPrivateToTGWRoute:
+    Description: >
+      Route to the ROSA private VPC from the public subnet via the
+      transit gateway
+    Value:
+      Ref: rEgressPrivateToTGWRoute
+  oRosaVpcRouteTable:
+    Description: ROSA private VPC route table
+    Value:
+      Ref: rRosaVpcRouteTable
+  oRosaVpcSubnetARouteTableAssociation:
+    Description: >
+      ROSA private VPC route table association with the private subnet
+    Value:
+      Ref: rRosaVpcSubnetARouteTableAssociation
+  oRosaVpcSubnetBRouteTableAssociation:
+    Condition: cMultiAZ
+    Description: >
+      ROSA private VPC route table association with the second private subnet
+    Value:
+      Ref: rRosaVpcSubnetBRouteTableAssociation
+  oRosaVpcSubnetCRouteTableAssociation:
+    Condition: cMultiAZ
+    Description: >
+      ROSA private VPC route table association with the third private subnet
+    Value:
+      Ref: rRosaVpcSubnetCRouteTableAssociation
+  oPrivateToTGWRoute:
+    Description: >
+      Route from the ROSA private VPC to the internet (0.0.0.0/0) via the
+      transit gateway
+    Value:
+      Ref: rRosaToTGWRoute
