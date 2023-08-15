@@ -39,25 +39,25 @@ Parameters:
     Type: String
   pRosaVpcSubnetACidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.1.1.0/24
+    Default: 10.1.0.0/24
     Description: >
       CIDR block for the first private subnet in the private VPC
-      (10.1.1.0/24 for example).
+      (10.1.0.0/24 for example).
     Type: String
   pRosaVpcSubnetBCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.1.2.0/24
+    Default: 10.1.1.0/24
     Description: >
       For a Multi-AZ deployment, CIDR block for the second private subnet in
-      the private VPC (10.1.2.0/24 for example).
+      the private VPC (10.1.1.0/24 for example).
       Required if pNumberOfAZs is 3.
     Type: String
   pRosaVpcSubnetCCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.1.3.0/24
+    Default: 10.1.2.0/24
     Description: >
       For a Multi-AZ deployment, CIDR block for the third private subnet in
-      the private VPC (10.1.3.0/24 for example).
+      the private VPC (10.1.2.0/24 for example).
       Required if pNumberOfAZs is 3.
     Type: String
   pEgressVpcCidrBlock:
@@ -95,7 +95,79 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc"]]
+  # Default Network ACLs (see https://access.redhat.com/documentation/en-us/
+  # red_hat_openshift_service_on_aws/4/html-single/
+  # install_rosa_classic_clusters/index#osd-aws-privatelink-required-resources.
+  # adoc_rosa-aws-privatelink-creating-cluster)
+  rInboundNetworkACLRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rRosaVpc
+          - DefaultNetworkAcl
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1024
+        To: 65535
+  rInboundNetworkACLRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rRosaVpc
+          - DefaultNetworkAcl
+      RuleNumber: 51
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+  rInboundNetworkACLRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rRosaVpc
+          - DefaultNetworkAcl
+      RuleNumber: 52
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 443
+        To: 443
+  rInboundNetworkACLRule4:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rRosaVpc
+          - DefaultNetworkAcl
+      RuleNumber: 53
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 22
+        To: 22
+  rInboundNetworkACLRule5:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rRosaVpc
+          - DefaultNetworkAcl
+      RuleNumber: 60
+      Protocol: -1
+      RuleAction: deny
+      CidrBlock: 0.0.0.0/0
+
   # Private subnets in the private VPC
   rRosaVpcSubnetA:
     Type: AWS::EC2::Subnet
@@ -111,7 +183,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-subnet-a']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-subnet-a"]]
   rRosaVpcSubnetB:
     Type: AWS::EC2::Subnet
     Condition: cMultiAZ
@@ -127,7 +199,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-subnet-b']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-subnet-b"]]
   rRosaVpcSubnetC:
     Type: AWS::EC2::Subnet
     Condition: cMultiAZ
@@ -143,7 +215,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-subnet-c']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-subnet-c"]]
 
   # Egress VPC
   rEgressVpc:
@@ -155,7 +227,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-vpc']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-vpc"]]
   # Private subnet in the egress VPC
   rEgressVpcPrivateSubnet:
     Type: AWS::EC2::Subnet
@@ -166,7 +238,7 @@ Resources:
         Ref: pEgressVpcPrivateSubnetCidrBlock
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-private-subnet']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-private-subnet"]]
   # Public subnet in the egress VPC
   rEgressVpcPublicSubnet:
     Type: AWS::EC2::Subnet
@@ -177,14 +249,14 @@ Resources:
         Ref: pEgressVpcPublicSubnetACidrBlock
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-subnet']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-subnet"]]
   # Internet gateway
   rInternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-igw']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-igw"]]
   rInternetGatewayEgressAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -199,7 +271,7 @@ Resources:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-nat-eip']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-nat-eip"]]
   rNATGateway:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -211,13 +283,13 @@ Resources:
         Ref: rEgressVpcPublicSubnet
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-nat']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-nat"]]
 
   # Network Firewall
   rEgressFirewall:
     Type: AWS::NetworkFirewall::Firewall
     Properties:
-      FirewallName: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
+      FirewallName: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
       VpcId: !Ref rEgressVpc
       SubnetMappings:
         - SubnetId: !Ref rEgressVpcPrivateSubnet
@@ -226,19 +298,20 @@ Resources:
       SubnetChangeProtection: false
       Tags:
         - Key: "Name"
-          Value: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
       Description: Network Firewall for Egress VPC
       FirewallPolicyArn: !Ref rEgressFirewallPolicy
 
   rEgressFirewallPolicy:
     Type: AWS::NetworkFirewall::FirewallPolicy
     Properties:
-      FirewallPolicyName: !Join ['', [!Ref pRosaClusterName, '-firewall-policy']]
+      FirewallPolicyName:
+        !Join ["", [!Ref pRosaClusterName, "-firewall-policy"]]
       FirewallPolicy:
         StatelessDefaultActions:
           - "aws:forward_to_sfe"
         StatelessFragmentDefaultActions:
-          - "aws:forward_to_sfe"      
+          - "aws:forward_to_sfe"
         StatefulRuleGroupReferences:
           - ResourceArn: !Ref rEgressFirewallRuleGroup
       Description: Stateful rule group for Network Firewall
@@ -247,11 +320,11 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group']]
+      RuleGroupName: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group"]]
       RuleGroup:
         RulesSource:
           RulesSourceList:
@@ -305,7 +378,7 @@ Resources:
       DefaultRouteTablePropagation: enable
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-tgw']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-tgw"]]
   rRosaTransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
@@ -319,7 +392,7 @@ Resources:
         Ref: rRosaVpc
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-tgw-private-attachment']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-private-attachment"]]
   rEgressTransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
@@ -331,7 +404,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-tgw-egress-attachment']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-egress-attachment"]]
 
   # Transit gateway route table
   rTransitGatewayRouteTable:
@@ -341,7 +414,7 @@ Resources:
         Ref: rTransitGateway
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-tgw-rt']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-rt"]]
   rEgressTransitGatewayRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     Properties:
@@ -394,7 +467,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-private-rt']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-private-rt"]]
   rEgressPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -420,7 +493,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-egress-public-rt']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-rt"]]
   rEgressPublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -457,7 +530,7 @@ Resources:
         Ref: rRosaVpc
       Tags:
         - Key: Name
-          Value: !Join ['', [!Ref pRosaClusterName, '-private-vpc-rt']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-rt"]]
   rRosaVpcSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -532,8 +605,8 @@ Outputs:
   oRosaVpcSubnetC:
     Condition: cMultiAZ
     Description: >
-       Third private subnet in the ROSA private VPC. Append that ID to the
-       --subnet-ids option of the "rosa create cluster" command.
+      Third private subnet in the ROSA private VPC. Append that ID to the
+      --subnet-ids option of the "rosa create cluster" command.
     Value:
       Ref: rRosaVpcSubnetC
   oEgressVpc:
