@@ -289,7 +289,7 @@ Resources:
   rEgressFirewall:
     Type: AWS::NetworkFirewall::Firewall
     Properties:
-      FirewallName: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
+      FirewallName: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
       VpcId: !Ref rEgressVpc
       SubnetMappings:
         - SubnetId: !Ref rEgressVpcPrivateSubnet
@@ -298,34 +298,47 @@ Resources:
       SubnetChangeProtection: false
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
+          Value: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
       Description: Network Firewall for Egress VPC
       FirewallPolicyArn: !Ref rEgressFirewallPolicy
 
   rEgressFirewallPolicy:
     Type: AWS::NetworkFirewall::FirewallPolicy
     Properties:
-      FirewallPolicyName:
-        !Join ["", [!Ref pRosaClusterName, "-firewall-policy"]]
+      FirewallPolicyName: !Join ['', [!Ref pRosaClusterName, '-firewall-policy']]
       FirewallPolicy:
         StatelessDefaultActions:
           - "aws:forward_to_sfe"
         StatelessFragmentDefaultActions:
-          - "aws:forward_to_sfe"
+          - "aws:forward_to_sfe"      
         StatefulRuleGroupReferences:
-          - ResourceArn: !Ref rEgressFirewallRuleGroup
+          - ResourceArn: 
+              Ref: "rEgressFirewallRuleGroup1"
+          - ResourceArn: 
+              Ref: "rEgressFirewallRuleGroup2"
+          - ResourceArn: 
+              Ref: "rEgressFirewallRuleGroup3"
       Description: Stateful rule group for Network Firewall
+      Tags:
+        - Key: "Name"
+          Value: !Join ["", [!Ref pRosaClusterName, "-network-firewall-policy"]]
 
-  rEgressFirewallRuleGroup:
+  rEgressFirewallRuleGroup1:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group"]]
+      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group1']]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group"]]
+          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group1']]
       RuleGroup:
+        RuleVariables:
+          IPSets:
+            HOME_NET:
+              Definition:
+                - "10.0.0.0/16"
+                - "10.1.0.0/16"
         RulesSource:
           RulesSourceList:
             TargetTypes:
@@ -363,10 +376,63 @@ Resources:
               - "events.pagerduty.com"
               - "api.deadmanssnitch.com"
               - "nosnch.in"
-              - ".osdsecuritylogs.splunkcloud.com"
               - "http-inputs-osdsecuritylogs.splunkcloud.com"
-              - "sftp.access.redhat.com"
             GeneratedRulesType: "ALLOWLIST"
+
+  rEgressFirewallRuleGroup2:
+    Type: "AWS::NetworkFirewall::RuleGroup"
+    Properties:
+      Capacity: "100"
+      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group2']]
+      Type: "STATEFUL"
+      Tags:
+        - Key: "Name"
+          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group2']]
+      Description: "Allow log forwarding to splunkcloud"
+      RuleGroup:
+        RuleVariables:
+          IPSets:
+            HOME_NET:
+              Definition:
+                - "10.0.0.0/16"
+                - "10.1.0.0/16"
+        RulesSource:
+          RulesString: 'pass tls $HOME_NET any -> $EXTERNAL_NET 9997 (tls.cert_subject; dotprefix; content:".osdsecuritylogs.splunkcloud.com"; endswith; msg:"Pass TLS to .osdsecuritylogs.splunkcloud.com"; sid:1004;  rev:1;)'
+
+
+  rEgressFirewallRuleGroup3:
+    Type: "AWS::NetworkFirewall::RuleGroup"
+    Properties:
+      Capacity: 50
+      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group3']]
+      Type: "STATEFUL"
+      Tags:
+        - Key: "Name"
+          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group3']]
+      Description: "Allow access to sftp.access.redhat.com"
+      RuleGroup:
+        RulesSource:
+          StatefulRules:
+            - Action: "PASS"
+              Header:
+                Destination: "35.80.245.1"
+                DestinationPort: "ANY"
+                Direction: "ANY"
+                Protocol: "SSH"
+                Source: "10.1.0.0/16"
+                SourcePort: "ANY"
+              RuleOptions:
+                - Keyword: "sid:1"
+            - Action: "PASS"
+              Header:
+                Destination: "35.80.245.1"
+                DestinationPort: "ANY"
+                Direction: "ANY"
+                Protocol: "SSH"
+                Source: "10.0.0.0/16"
+                SourcePort: "ANY"
+              RuleOptions:
+                - Keyword: "sid:2"
 
   # Transit gateway
   rTransitGateway:
@@ -636,9 +702,15 @@ Outputs:
   oEgressFirewallPolicy:
     Description: Stateful rule group for Network Firewall
     Value: !Ref rEgressFirewallPolicy
-  oEgressFirewallRuleGroup:
-    Description: Rule group for Network Firewall
-    Value: !Ref rEgressFirewallRuleGroup
+  oEgressFirewallRuleGroup1:
+    Description: First rule group for Network Firewall
+    Value: !Ref rEgressFirewallRuleGroup1
+  oEgressFirewallRuleGroup2:
+    Description: Second rule group for Network Firewall
+    Value: !Ref rEgressFirewallRuleGroup2
+  oEgressFirewallRuleGroup3:
+    Description: Third rule group for Network Firewall
+    Value: !Ref rEgressFirewallRuleGroup3
   oInternetGateway:
     Description: Internet gateway in the Egress VPC
     Value:
