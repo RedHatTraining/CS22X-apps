@@ -289,7 +289,7 @@ Resources:
   rEgressFirewall:
     Type: AWS::NetworkFirewall::Firewall
     Properties:
-      FirewallName: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
+      FirewallName: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
       VpcId: !Ref rEgressVpc
       SubnetMappings:
         - SubnetId: !Ref rEgressVpcPrivateSubnet
@@ -298,19 +298,19 @@ Resources:
       SubnetChangeProtection: false
       Tags:
         - Key: "Name"
-          Value: !Join ['', [!Ref pRosaClusterName, '-network-firewall']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
       Description: Network Firewall for Egress VPC
       FirewallPolicyArn: !Ref rEgressFirewallPolicy
 
   rEgressFirewallPolicy:
     Type: AWS::NetworkFirewall::FirewallPolicy
     Properties:
-      FirewallPolicyName: !Join ['', [!Ref pRosaClusterName, '-firewall-policy']]
+      FirewallPolicyName: !Join ["", [!Ref pRosaClusterName, "-firewall-policy"]]
       FirewallPolicy:
         StatelessDefaultActions:
           - "aws:forward_to_sfe"
         StatelessFragmentDefaultActions:
-          - "aws:forward_to_sfe"      
+          - "aws:forward_to_sfe"
         StatefulRuleGroupReferences:
           - ResourceArn: 
               Ref: "rEgressFirewallRuleGroup1"
@@ -327,11 +327,11 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group1']]
+      RuleGroupName: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group1']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
       RuleGroup:
         RuleVariables:
           IPSets:
