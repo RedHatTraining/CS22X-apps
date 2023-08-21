@@ -9,7 +9,7 @@ Parameters:
     MinLength: 4
     MaxLength: 15
     AllowedPattern: "[a-z][-a-z0-9]*[a-z0-9]"
-    Default: cs220-cluster
+    Default: cs221-cluster
     Description: >
       Name of the ROSA cluster that you will create.
       That parameter is used to tag the AWS resources that this template
@@ -70,14 +70,21 @@ Parameters:
     Default: 10.0.1.0/24
     Description: >
       CIDR block for the private subnet in the Egress VPC
-      (10.9.1.0/24 for example).
+      (10.0.1.0/24 for example).
     Type: String
-  pEgressVpcPublicSubnetACidrBlock:
+  pEgressVpcFirewallSubnetCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.0.2.0/24
     Description: >
-      CIDR block for the public subnet in the Egress VPC
+      CIDR block for the firewall subnet in the Egress VPC
       (10.0.2.0/24 for example).
+    Type: String
+  pEgressVpcPublicSubnetACidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.0.3.0/24
+    Description: >
+      CIDR block for the public subnet in the Egress VPC
+      (10.0.3.0/24 for example).
     Type: String
 
 Conditions:
@@ -239,6 +246,17 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pRosaClusterName, "-egress-private-subnet"]]
+  # Firewall subnet in the egress VPC
+  rEgressVpcFirewallSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      CidrBlock:
+        Ref: pEgressVpcFirewallSubnetCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-firewall-subnet"]]
   # Public subnet in the egress VPC
   rEgressVpcPublicSubnet:
     Type: AWS::EC2::Subnet
@@ -292,7 +310,7 @@ Resources:
       FirewallName: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
       VpcId: !Ref rEgressVpc
       SubnetMappings:
-        - SubnetId: !Ref rEgressVpcPrivateSubnet
+        - SubnetId: !Ref rEgressVpcFirewallSubnet
       DeleteProtection: false
       FirewallPolicyChangeProtection: false
       SubnetChangeProtection: false
@@ -328,7 +346,7 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName:
+      RuleGroupName: 
         !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
       Type: "STATEFUL"
       Tags:
@@ -542,31 +560,72 @@ Resources:
         Ref: rTransitGatewayRosaRouteTable
 
   # Egress VPC private subnet route table
-  rEgressPrivateRouteTable:
+  rEgressVPCTGWRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-private-rt"]]
-  rEgressPrivateRouteTableAssociation:
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-vpc-tgw-rt"]]
+  rEgressVPCTGWRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rEgressVpcPrivateSubnet
     Properties:
       SubnetId:
         Ref: rEgressVpcPrivateSubnet
       RouteTableId:
-        Ref: rEgressPrivateRouteTable
-  # Default route (internet) from the private subnet to the NAT gateway
-  rEgressPrivateToNATRoute:
+        Ref: rEgressVPCTGWRouteTable
+  # Route from the private subnet to the network firewall
+  rEgressPrivateToFirewallRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rEgressFirewall
+    Properties:
+      RouteTableId:
+        Ref: rEgressVPCTGWRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      VpcEndpointId: !Select [1, !Split [":", !Select [0, !GetAtt rEgressFirewall.EndpointIds]]]
+
+  # Egress VPC firewall subnet route table
+  rEgressVPCFirewallRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rEgressVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pRosaClusterName, "-egress-firewall-rt"]]
+  rEgressVPCFirewallRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: rEgressVpcFirewallSubnet
+    Properties:
+      SubnetId:
+        Ref: rEgressVpcFirewallSubnet
+      RouteTableId:
+        Ref: rEgressVPCFirewallRouteTable
+  # Route from the firewall subnet to the NAT gateway
+  rEgressFirewallToNatRoute:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId:
-        Ref: rEgressPrivateRouteTable
+        Ref: rEgressVPCFirewallRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId:
         Ref: rNATGateway
+  # Route from the firewall subnet to Rosa VPC via TGW
+  rEgressFirewallToTGWRoute:
+    Type: AWS::EC2::Route
+    DependsOn: 
+      - rTransitGateway
+      - rRosaTransitGatewayAttachment
+      - rEgressTransitGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: rEgressVPCFirewallRouteTable
+      DestinationCidrBlock: 
+        Ref: pRosaVpcCidrBlock
+      TransitGatewayId:
+        Ref: rTransitGateway
 
   # Egress VPC public subnet route table
   rEgressVpcPublicRouteTable:
@@ -585,8 +644,8 @@ Resources:
         Ref: rEgressVpcPublicSubnet
       RouteTableId:
         Ref: rEgressVpcPublicRouteTable
-  # Default route (internet) from the public subnet to the Internet gateway
-  rEgressPrivateToIGWRoute:
+  # Default route to internet-from the public subnet to the Internet gateway
+  rEgressPublicToIGWRoute:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId:
@@ -594,17 +653,16 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId:
         Ref: rInternetGateway
-  # Traffic to the ROSA private VPC goes through the Transit Gateway
-  rEgressPrivateToTGWRoute:
+  # Traffic to the ROSA private VPC goes through the network firewall for inspection
+  rEgressPublicToFirewallRoute:
     Type: AWS::EC2::Route
-    DependsOn: rEgressTransitGatewayAttachment
+    DependsOn: rEgressFirewall
     Properties:
       RouteTableId:
         Ref: rEgressVpcPublicRouteTable
       DestinationCidrBlock:
         Ref: pRosaVpcCidrBlock
-      TransitGatewayId:
-        Ref: rTransitGateway
+      VpcEndpointId: !Select [1, !Split [":", !Select [0, !GetAtt rEgressFirewall.EndpointIds]]]
 
   # ROSA private VPC route table
   rRosaVpcRouteTable:
@@ -711,6 +769,12 @@ Outputs:
       Ref: rEgressVpcPrivateSubnet
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", EgressVpcPrivateSubnet]]
+  oEgressVpcFirewallSubnet:
+    Description: Firewall subnet in the Egress VPC
+    Value:
+      Ref: rEgressVpcFirewallSubnet
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", EgressVpcFirewallSubnet]]
   oEgressVpcPublicSubnet:
     Description: Public subnet in the Egress VPC
     Value:
@@ -788,17 +852,35 @@ Outputs:
   oEgressPrivateRouteTable:
     Description: Egress VPC route table for the private subnet
     Value:
-      Ref: rEgressPrivateRouteTable
+      Ref: rEgressVPCTGWRouteTable
   oEgressPrivateRouteTableAssociation:
     Description: Egress VPC route table association with the private subnet
     Value:
-      Ref: rEgressPrivateRouteTableAssociation
-  oEgressPrivateToNATRoute:
+      Ref: rEgressVPCTGWRouteTableAssociation
+  oEgressPrivateToFirewallRoute:
     Description: >
-      Route from the private subnet to the internet (0.0.0.0/0)
-      via the NAT gateway
+      Route from the private subnet to the network firewall
     Value:
-      Ref: rEgressPrivateToNATRoute
+      Ref: rEgressPrivateToFirewallRoute
+  oEgressFirewallRouteTable:
+    Description: >
+      Route table for firewall subnet
+    Value:
+      Ref: rEgressVPCFirewallRouteTable
+  oEgressFirewallRouteTableAssociation:
+    Description: Egress VPC route table association with the firewall subnet
+    Value:
+      Ref: rEgressVPCFirewallRouteTableAssociation
+  oEgressFirewallToNatRoute:
+    Description: >
+      Route from the firewall subnet to internet via NAT gateway
+    Value:
+      Ref: rEgressFirewallToNatRoute
+  oEgressFirewallToTGWRoute:
+    Description: >
+      Route from the firewall subnet to the rosa VPC via TGW
+    Value:
+      Ref: rEgressFirewallToTGWRoute
   oEgressVpcPublicRouteTable:
     Description: Egress VPC route table for the public subnet
     Value:
@@ -807,18 +889,18 @@ Outputs:
     Description: Egress VPC route table association with the public subnet
     Value:
       Ref: rEgressPublicSubnetARouteTableAssociation
-  oEgressPrivateToIGWRoute:
+  oEgressPublicToIGWRoute:
     Description: >
       Route from the public subnet to the internet (0.0.0.0/0)
       via the Internet gateway
     Value:
-      Ref: rEgressPrivateToIGWRoute
-  oEgressPrivateToTGWRoute:
+      Ref: rEgressPublicToIGWRoute
+  oEgressPublicToFirewallRoute:
     Description: >
       Route to the ROSA private VPC from the public subnet via the
-      transit gateway
+      network firewall
     Value:
-      Ref: rEgressPrivateToTGWRoute
+      Ref: rEgressPublicToFirewallRoute
   oRosaVpcRouteTable:
     Description: ROSA private VPC route table
     Value:
