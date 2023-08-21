@@ -305,18 +305,19 @@ Resources:
   rEgressFirewallPolicy:
     Type: AWS::NetworkFirewall::FirewallPolicy
     Properties:
-      FirewallPolicyName: !Join ["", [!Ref pRosaClusterName, "-firewall-policy"]]
+      FirewallPolicyName:
+        !Join ["", [!Ref pRosaClusterName, "-firewall-policy"]]
       FirewallPolicy:
         StatelessDefaultActions:
           - "aws:forward_to_sfe"
         StatelessFragmentDefaultActions:
           - "aws:forward_to_sfe"
         StatefulRuleGroupReferences:
-          - ResourceArn: 
+          - ResourceArn:
               Ref: "rEgressFirewallRuleGroup1"
-          - ResourceArn: 
+          - ResourceArn:
               Ref: "rEgressFirewallRuleGroup2"
-          - ResourceArn: 
+          - ResourceArn:
               Ref: "rEgressFirewallRuleGroup3"
       Description: Stateful rule group for Network Firewall
       Tags:
@@ -327,7 +328,8 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
+      RuleGroupName:
+        !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
@@ -337,8 +339,8 @@ Resources:
           IPSets:
             HOME_NET:
               Definition:
-                - "10.0.0.0/16"
-                - "10.1.0.0/16"
+                - Ref: pEgressVpcCidrBlock
+                - Ref: pRosaVpcCidrBlock
         RulesSource:
           RulesSourceList:
             TargetTypes:
@@ -384,32 +386,37 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group2']]
+      RuleGroupName:
+        !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group2"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group2']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group2"]]
       Description: "Allow log forwarding to splunkcloud"
       RuleGroup:
         RuleVariables:
           IPSets:
             HOME_NET:
               Definition:
-                - "10.0.0.0/16"
-                - "10.1.0.0/16"
+                - Ref: pEgressVpcCidrBlock
+                - Ref: pRosaVpcCidrBlock
         RulesSource:
-          RulesString: 'pass tls $HOME_NET any -> $EXTERNAL_NET 9997 (tls.cert_subject; dotprefix; content:".osdsecuritylogs.splunkcloud.com"; endswith; msg:"Pass TLS to .osdsecuritylogs.splunkcloud.com"; sid:1004;  rev:1;)'
-
+          RulesString: >
+            pass tls $HOME_NET any -> $EXTERNAL_NET 9997 (tls.cert_subject;
+            dotprefix; content:".osdsecuritylogs.splunkcloud.com"; endswith;
+            msg:"Pass TLS to .osdsecuritylogs.splunkcloud.com";
+            sid:1004; rev:1;)
 
   rEgressFirewallRuleGroup3:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: 50
-      RuleGroupName: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group3']]
+      RuleGroupName:
+        !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group3"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ['', [!Ref pRosaClusterName, '-firewall-rule-group3']]
+          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group3"]]
       Description: "Allow access to sftp.access.redhat.com"
       RuleGroup:
         RulesSource:
@@ -420,7 +427,8 @@ Resources:
                 DestinationPort: "ANY"
                 Direction: "ANY"
                 Protocol: "SSH"
-                Source: "10.1.0.0/16"
+                Source:
+                  Ref: pRosaVpcCidrBlock
                 SourcePort: "ANY"
               RuleOptions:
                 - Keyword: "sid:1"
@@ -430,7 +438,8 @@ Resources:
                 DestinationPort: "ANY"
                 Direction: "ANY"
                 Protocol: "SSH"
-                Source: "10.0.0.0/16"
+                Source:
+                  Ref: pEgressVpcCidrBlock
                 SourcePort: "ANY"
               RuleOptions:
                 - Keyword: "sid:2"
@@ -473,29 +482,46 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref pRosaClusterName, "-tgw-egress-attachment"]]
 
-  # Transit gateway route table
-  rTransitGatewayRouteTable:
+  # Transit gateway route table (Egress)
+  rTransitGatewayEgressRouteTable:
     Type: AWS::EC2::TransitGatewayRouteTable
     Properties:
       TransitGatewayId:
         Ref: rTransitGateway
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-rt"]]
+          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-egress-rt"]]
   rEgressTransitGatewayRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     Properties:
       TransitGatewayAttachmentId:
         Ref: rEgressTransitGatewayAttachment
       TransitGatewayRouteTableId:
-        Ref: rTransitGatewayRouteTable
+        Ref: rTransitGatewayEgressRouteTable
+  rPropagateRosaVPCRoute:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: rRosaTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayEgressRouteTable
+
+  # Transit gateway route table (ROSA)
+  rTransitGatewayRosaRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId:
+        Ref: rTransitGateway
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-rosa-rt"]]
   rRosaTransitGatewayRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     Properties:
       TransitGatewayAttachmentId:
         Ref: rRosaTransitGatewayAttachment
       TransitGatewayRouteTableId:
-        Ref: rTransitGatewayRouteTable
+        Ref: rTransitGatewayRosaRouteTable
   # Default route (internet) to the private subnet of the Egress VPC
   rEgressTransitGatewayRoute1:
     Type: AWS::EC2::TransitGatewayRoute
@@ -504,19 +530,9 @@ Resources:
       TransitGatewayAttachmentId:
         Ref: rEgressTransitGatewayAttachment
       TransitGatewayRouteTableId:
-        Ref: rTransitGatewayRouteTable
-  # Route to the Egress VPC
-  rEgressTransitGatewayRoute2:
-    Type: AWS::EC2::TransitGatewayRoute
-    Properties:
-      DestinationCidrBlock:
-        Ref: pEgressVpcCidrBlock
-      TransitGatewayAttachmentId:
-        Ref: rEgressTransitGatewayAttachment
-      TransitGatewayRouteTableId:
-        Ref: rTransitGatewayRouteTable
+        Ref: rTransitGatewayRosaRouteTable
   # Route to the ROSA private VPC
-  rEgressTransitGatewayRoute3:
+  rEgressTransitGatewayRoute2:
     Type: AWS::EC2::TransitGatewayRoute
     Properties:
       DestinationCidrBlock:
@@ -524,7 +540,7 @@ Resources:
       TransitGatewayAttachmentId:
         Ref: rRosaTransitGatewayAttachment
       TransitGatewayRouteTableId:
-        Ref: rTransitGatewayRouteTable
+        Ref: rTransitGatewayRosaRouteTable
 
   # Egress VPC private subnet route table
   rEgressPrivateRouteTable:
@@ -537,6 +553,7 @@ Resources:
           Value: !Join ["", [!Ref pRosaClusterName, "-egress-private-rt"]]
   rEgressPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: rEgressVpcPrivateSubnet
     Properties:
       SubnetId:
         Ref: rEgressVpcPrivateSubnet
@@ -563,6 +580,7 @@ Resources:
           Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-rt"]]
   rEgressPublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: rEgressVpcPublicSubnet
     Properties:
       SubnetId:
         Ref: rEgressVpcPublicSubnet
@@ -600,6 +618,7 @@ Resources:
           Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-rt"]]
   rRosaVpcSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: rRosaVpcSubnetA
     Properties:
       SubnetId:
         Ref: rRosaVpcSubnetA
@@ -608,6 +627,7 @@ Resources:
   rRosaVpcSubnetBRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Condition: cMultiAZ
+    DependsOn: rRosaVpcSubnetB
     Properties:
       SubnetId:
         Ref: rRosaVpcSubnetB
@@ -616,6 +636,7 @@ Resources:
   rRosaVpcSubnetCRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Condition: cMultiAZ
+    DependsOn: rRosaVpcSubnetC
     Properties:
       SubnetId:
         Ref: rRosaVpcSubnetC
@@ -699,19 +720,24 @@ Outputs:
       Name: !Join [":", [!Ref "AWS::StackName", EgressVpcPublicSubnet]]
   oEgressFirewall:
     Description: Network Firewall for Egress VPC
-    Value: !Ref rEgressFirewall
+    Value:
+      Ref: rEgressFirewall
   oEgressFirewallPolicy:
     Description: Stateful rule group for Network Firewall
-    Value: !Ref rEgressFirewallPolicy
+    Value:
+      Ref: rEgressFirewallPolicy
   oEgressFirewallRuleGroup1:
     Description: First rule group for Network Firewall
-    Value: !Ref rEgressFirewallRuleGroup1
+    Value:
+      Ref: rEgressFirewallRuleGroup1
   oEgressFirewallRuleGroup2:
     Description: Second rule group for Network Firewall
-    Value: !Ref rEgressFirewallRuleGroup2
+    Value:
+      Ref: rEgressFirewallRuleGroup2
   oEgressFirewallRuleGroup3:
     Description: Third rule group for Network Firewall
-    Value: !Ref rEgressFirewallRuleGroup3
+    Value:
+      Ref: rEgressFirewallRuleGroup3
   oInternetGateway:
     Description: Internet gateway in the Egress VPC
     Value:
@@ -740,22 +766,26 @@ Outputs:
     Description: Transit gateway attachement to the Egress VPC
     Value:
       Ref: rEgressTransitGatewayAttachment
-  oTransitGatewayRouteTable:
-    Description: Transit gateway route table
+  oTransitGatewayEgressRouteTable:
+    Description: Transit gateway route table for the Egress VPC
     Value:
-      Ref: rTransitGatewayRouteTable
+      Ref: rTransitGatewayEgressRouteTable
+  oPropagateRosaVPCRoute:
+    Description: Transit gateway propagate route to the ROSA private VPC
+    Value:
+      Ref: rPropagateRosaVPCRoute
+  oTransitGatewayRosaRouteTable:
+    Description: Transit gateway route table for the ROSA private VPC
+    Value:
+      Ref: rTransitGatewayRosaRouteTable
   oEgressTransitGatewayRoute1:
     Description: Transit gateway route to the internet (0.0.0.0/0)
     Value:
       Ref: rEgressTransitGatewayRoute1
   oEgressTransitGatewayRoute2:
-    Description: Transit gateway route to the Egress VPC
-    Value:
-      Ref: rEgressTransitGatewayRoute2
-  oEgressTransitGatewayRoute3:
     Description: Transit gateway route to the ROSA private VPC
     Value:
-      Ref: rEgressTransitGatewayRoute3
+      Ref: rEgressTransitGatewayRoute2
   oEgressPrivateRouteTable:
     Description: Egress VPC route table for the private subnet
     Value:
