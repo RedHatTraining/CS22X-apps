@@ -349,7 +349,6 @@ Resources:
             Targets:
               - "registry.redhat.io"
               - ".quay.io"
-              - "quay.io"
               - "sso.redhat.com"
               - "quay-registry.s3.amazonaws.com"
               - "ocm-quay-production-s3.s3.amazonaws.com"
