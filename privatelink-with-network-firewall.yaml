@@ -373,6 +373,7 @@ Resources:
               - "quayio-production-s3.s3.amazonaws.com"
               - "cart-rhcos-ci.s3.amazonaws.com"
               - "openshift.org"
+              - "access.redhat.com"
               - "registry.access.redhat.com"
               - "registry.connect.redhat.com"
               - "pull.q1w2.quay.rhcloud.com"
