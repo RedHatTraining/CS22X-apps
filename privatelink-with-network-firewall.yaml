@@ -346,7 +346,7 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName: 
+      RuleGroupName:
         !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
       Type: "STATEFUL"
       Tags:
@@ -585,7 +585,11 @@ Resources:
       RouteTableId:
         Ref: rEgressVPCTGWRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      VpcEndpointId: !Select [1, !Split [":", !Select [0, !GetAtt rEgressFirewall.EndpointIds]]]
+      VpcEndpointId:
+        !Select [
+          1,
+          !Split [":", !Select [0, !GetAtt rEgressFirewall.EndpointIds]],
+        ]
 
   # Egress VPC firewall subnet route table
   rEgressVPCFirewallRouteTable:
@@ -616,14 +620,14 @@ Resources:
   # Route from the firewall subnet to Rosa VPC via TGW
   rEgressFirewallToTGWRoute:
     Type: AWS::EC2::Route
-    DependsOn: 
+    DependsOn:
       - rTransitGateway
       - rRosaTransitGatewayAttachment
       - rEgressTransitGatewayAttachment
     Properties:
       RouteTableId:
         Ref: rEgressVPCFirewallRouteTable
-      DestinationCidrBlock: 
+      DestinationCidrBlock:
         Ref: pRosaVpcCidrBlock
       TransitGatewayId:
         Ref: rTransitGateway
@@ -654,7 +658,8 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId:
         Ref: rInternetGateway
-  # Traffic to the ROSA private VPC goes through the network firewall for inspection
+  # Traffic to the ROSA private VPC goes through the network firewall for
+  # inspection
   rEgressPublicToFirewallRoute:
     Type: AWS::EC2::Route
     DependsOn: rEgressFirewall
@@ -663,7 +668,11 @@ Resources:
         Ref: rEgressVpcPublicRouteTable
       DestinationCidrBlock:
         Ref: pRosaVpcCidrBlock
-      VpcEndpointId: !Select [1, !Split [":", !Select [0, !GetAtt rEgressFirewall.EndpointIds]]]
+      VpcEndpointId:
+        !Select [
+          1,
+          !Split [":", !Select [0, !GetAtt rEgressFirewall.EndpointIds]],
+        ]
 
   # ROSA private VPC route table
   rRosaVpcRouteTable:
