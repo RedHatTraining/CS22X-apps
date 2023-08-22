@@ -816,7 +816,7 @@ Outputs:
     Value:
       Ref: rInternetGateway
   oInternetGatewayEgressAttachment:
-    Description: Internet gateway attachement to the Egress VPC
+    Description: Internet gateway attachment to the Egress VPC
     Value:
       Ref: rInternetGatewayEgressAttachment
   oNAT:
@@ -832,11 +832,11 @@ Outputs:
     Value:
       Ref: rTransitGateway
   oPrivateTransitGatewayAttachment:
-    Description: Transit gateway attachement to the ROSA private VPC
+    Description: Transit gateway attachment to the ROSA private VPC
     Value:
       Ref: rRosaTransitGatewayAttachment
   oEgressTransitGatewayAttachment:
-    Description: Transit gateway attachement to the Egress VPC
+    Description: Transit gateway attachment to the Egress VPC
     Value:
       Ref: rEgressTransitGatewayAttachment
   oTransitGatewayEgressRouteTable:
