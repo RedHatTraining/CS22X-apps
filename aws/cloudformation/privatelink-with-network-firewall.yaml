@@ -744,6 +744,8 @@ Outputs:
       ROSA private VPC CIDR block. Use that CIDR block for the --machine-cidr
       option of the "rosa create cluster" command.
     Value: !GetAtt rRosaVpc.CidrBlock
+    Export:
+      Name: RosaVpcCidr
   oRosaVpcSubnetA:
     Description: >
       Private subnet in the ROSA private VPC. Use that ID for the --subnet-ids
@@ -831,10 +833,14 @@ Outputs:
     Description: Transit gateway that connects the two VPCs
     Value:
       Ref: rTransitGateway
+    Export:
+      Name: TransitGateway
   oPrivateTransitGatewayAttachment:
     Description: Transit gateway attachment to the ROSA private VPC
     Value:
       Ref: rRosaTransitGatewayAttachment
+    Export:
+      Name: RosaTransitGatewayAttachment
   oEgressTransitGatewayAttachment:
     Description: Transit gateway attachment to the Egress VPC
     Value:
@@ -851,6 +857,8 @@ Outputs:
     Description: Transit gateway route table for the ROSA private VPC
     Value:
       Ref: rTransitGatewayRosaRouteTable
+    Export:
+      Name: TransitGatewayRosaRouteTable
   oEgressTransitGatewayRoute1:
     Description: Transit gateway route to the internet (0.0.0.0/0)
     Value:
