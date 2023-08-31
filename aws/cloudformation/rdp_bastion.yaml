@@ -1,0 +1,492 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates a bastion host based on Mate AMI on a new VPC(customer).
+  This bastion host will be used to connect to the ROSA cluster, run oc commands
+  and view the OpenShift console.
+
+Parameters:
+  pTagprefix:
+    Description: Use the course code to prepend resource tags
+    Type: String
+    Default: cs220
+  pCustomerVpcCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.0.0/16
+    Description: Customer VPC CIDR block (10.2.0.0/16 for example).
+    Type: String
+  pCustomerVpcPrivateSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.0.0/24
+    Description: >
+      CIDR block for the private subnet in the customer VPC
+      (10.2.1.0/24 for example).
+    Type: String
+  pCustomerVpcPublicSubnetACidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.2.0/24
+    Description: >
+      CIDR block for the public subnet in the customer VPC
+      (10.2.2.0/24 for example).
+    Type: String
+  pInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: "t3.micro"
+  pSshLocation:
+    Description: The IP address range that can SSH to the EC2 instance
+    Type: String
+    Default: "0.0.0.0/0"
+  pRdpLocation:
+    Description: The IP address range that can use RDP to the EC2 instance
+    Type: String
+    Default: "0.0.0.0/0"
+
+Mappings:
+  RegionMap:
+    ap-south-1:
+      ami: ami-061183ad486d5dd8a
+    eu-north-1:
+      ami: ami-03a2ff446d5bf5187
+    eu-west-3:
+      ami: ami-06e90f3404ebc4277
+    eu-west-2:
+      ami: ami-0ef262972e641bb3e
+    eu-west-1:
+      ami: ami-0ac03fb170870f7c7
+    ap-northeast-3:
+      ami: ami-01d7109b399c6b223
+    ap-northeast-2:
+      ami: ami-06b9122710049dfe7
+    ap-northeast-1:
+      ami: ami-0d5142f63c808d143
+    ca-central-1:
+      ami: ami-04609b5b156500b17
+    sa-east-1:
+      ami: ami-0b123273fd25fe833
+    ap-southeast-1:
+      ami: ami-0fcd2e9ac9a168217
+    ap-southeast-2:
+      ami: ami-09fb3a51968a858cd
+    eu-central-1:
+      ami: ami-0087bd2f5c26af5ca
+    us-east-1:
+      ami: ami-005b11f8b84489615
+    us-east-2:
+      ami: ami-08778753ef37aa408
+    us-west-1:
+      ami: ami-0267fc24ee0102728
+    us-west-2:
+      ami: ami-081aaface2871d0d0
+
+Resources:
+  # Customer VPC
+  rCustomerVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-vpc"]]
+  # Default Network ACLs (see https://access.redhat.com/documentation/en-us/
+  # red_hat_openshift_service_on_aws/4/html-single/
+  # install_rosa_classic_clusters/index#osd-aws-privatelink-required-resources.
+  # adoc_rosa-aws-privatelink-creating-cluster)
+  rInboundNetworkACLRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1024
+        To: 65535
+  rInboundNetworkACLRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 51
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+  rInboundNetworkACLRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 52
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 443
+        To: 443
+  rInboundNetworkACLRule4:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 53
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 22
+        To: 22
+  rInboundNetworkACLRule5:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 54
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 3389
+        To: 3389
+  rInboundNetworkACLRule6:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 60
+      Protocol: -1
+      RuleAction: deny
+      CidrBlock: 0.0.0.0/0
+
+  # Private subnet in the customer VPC
+  rCustomerVpcPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      CidrBlock:
+        Ref: pCustomerVpcPrivateSubnetCidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet"]]
+
+  # Public subnet in the customer VPC
+  rCustomerVpcPublicSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      CidrBlock:
+        Ref: pCustomerVpcPublicSubnetACidrBlock
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-subnet"]]
+
+  # Internet gateway
+  rInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-igw"]]
+  rInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      InternetGatewayId:
+        Ref: rInternetGateway
+
+  # NAT gateway
+  rElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat-eip"]]
+  rNATGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: rElasticIP
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - rElasticIP
+          - AllocationId
+      SubnetId:
+        Ref: rCustomerVpcPublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat"]]
+
+  # Transit gateway attachment for private subnet in customer vpc
+  rCustomerTransitGatewayAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - Ref: rCustomerVpcPrivateSubnet
+      TransitGatewayId:
+        Fn::ImportValue: TransitGateway
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-tgw-customer-vpc-attachment"]]
+
+  # Transit gateway route table (Customer)
+  rTransitGatewayCustomerRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId:
+        Fn::ImportValue: TransitGateway
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-tgw-customer-rt"]]
+  rCustomerTransitGatewayRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    DependsOn:
+      - rCustomerTransitGatewayAttachment
+      - rTransitGatewayCustomerRouteTable
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: rCustomerTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayCustomerRouteTable
+  # Add route to existing TG for customer VPC
+  rCustomerTransitGatewayRoute:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      DestinationCidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      TransitGatewayAttachmentId:
+        Ref: rCustomerTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue: TransitGatewayRosaRouteTable
+  # Enable the Rosa TG attachment to propagate its rt to cu tg rt
+  rPropagateRosaVPCRoute:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    DependsOn:
+      - rTransitGatewayCustomerRouteTable
+      - rCustomerTransitGatewayRoute
+    Properties:
+      TransitGatewayAttachmentId:
+        Fn::ImportValue: RosaTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayCustomerRouteTable
+
+  # Customer VPC private subnet route table
+  rCustomerVpcPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-rt"]]
+  rCustomerVpcPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - rCustomerVpcPrivateSubnet
+      - rCustomerVpcPrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPrivateSubnet
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+  # Route from the private subnet to NAT gateway for Internet
+  rCustomerPrivateRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: rCustomerVpcPrivateRouteTable
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: rNATGateway
+  # Route from the private subnet to ROSA cluster
+  rCustomerPrivateRoute2:
+    Type: AWS::EC2::Route
+    DependsOn: rCustomerVpcPrivateRouteTable
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+      DestinationCidrBlock:
+        Fn::ImportValue: RosaVpcCidr
+      TransitGatewayId:
+        Fn::ImportValue: TransitGateway
+
+  # Customer VPC public subnet route table
+  rCustomerVpcPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-rt"]]
+  rCustomerPublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - rCustomerVpcPublicSubnet
+      - rCustomerVpcPublicRouteTable
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPublicSubnet
+      RouteTableId:
+        Ref: rCustomerVpcPublicRouteTable
+  # Route from the public subnet to NAT gateway for Internet
+  rCustomerPublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: rCustomerVpcPublicRouteTable
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: rInternetGateway
+
+  # Security Group for bastion
+  rSecurityGroupBastion:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpc
+    Properties:
+      GroupDescription: Enable SSH and RDP access
+      GroupName: Bastion Host Security Group
+      VpcId: !Ref rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-bastion-sg"]]
+      SecurityGroupIngress:
+        - CidrIp: !Ref pSshLocation
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+        - CidrIp: !Ref pRdpLocation
+          FromPort: 3389
+          ToPort: 3389
+          IpProtocol: tcp
+
+  # Bastion EC2 instance
+  rBastionHost:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - rSecurityGroupBastion
+      - rCustomerVpcPrivateSubnet
+    Properties:
+      InstanceType: !Ref pInstanceType
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref 'AWS::Region'
+        - ami
+      NetworkInterfaces:
+        -
+          GroupSet:
+            - !Ref rSecurityGroupBastion
+          AssociatePublicIpAddress: false
+          DeviceIndex: 0
+          DeleteOnTermination: true
+          SubnetId: !Ref rCustomerVpcPrivateSubnet
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-bastion-instance"]]
+
+Outputs:
+  oBastionHost:
+    Description: Bastion Host Instance
+    Value: !Ref rBastionHost
+    Export:
+      Name: !Sub "${AWS::StackName}-BastionHost"
+  oCustomerVPC:
+    Description: Customer VPC
+    Value: !Ref rCustomerVpc
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPC"
+  oCustomerVPCPrivateSubnet:
+    Description: Customer VPC Private Subnet
+    Value: !Ref rCustomerVpcPrivateSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnet"
+  oCustomerVPCPublicSubnet:
+    Description: Customer VPC Public Subnet
+    Value: !Ref rCustomerVpcPublicSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPublicSubnet"
+  oInternetGateway:
+    Description: Internet Gateway
+    Value: !Ref rInternetGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-InternetGateway"
+  oElasticIP:
+    Description: Elastic IP
+    Value: !Ref rElasticIP
+    Export:
+      Name: !Sub "${AWS::StackName}-ElasticIP"
+  oNATGateway:
+    Description: NAT Gateway
+    Value: !Ref rNATGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-NATGateway"
+  oTransitGatewayAttachment:
+    Description: Transit Gateway Attachment for Customer VPC
+    Value: !Ref rCustomerTransitGatewayAttachment
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerTransitGatewayAttachment"
+  oTransitGatewayCustomerRouteTable:
+    Description: Transit Gateway Route Table for Customer VPC
+    Value: !Ref rTransitGatewayCustomerRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-TransitGatewayCustomerRouteTable"
+  oCustomerTransitGatewayRoute:
+    Description: Add new route to Cu vpc in existing Transit gateway route table
+    Value: !Ref rCustomerTransitGatewayRoute
+  oPropagateRosaVPCRoute:
+    Description: Propagate transit gateway route to the Customer VPC
+    Value: !Ref rPropagateRosaVPCRoute
+  oCustomerVPCPrivateRouteTable:
+    Description: Route Table for Customer VPC Private Subnet
+    Value: !Ref rCustomerVpcPrivateRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateRouteTable"
+  oCustomerVPCPublicRouteTable:
+    Description: Route Table for Customer VPC Public Subnet
+    Value: !Ref rCustomerVpcPublicRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPublicRouteTable"
+  oSecurityGroupBastion:
+    Description: Security Group for Bastion Host
+    Value: !Ref rSecurityGroupBastion
+    Export:
+      Name: !Sub "${AWS::StackName}-SecurityGroupBastion"
