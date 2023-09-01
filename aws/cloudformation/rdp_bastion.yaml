@@ -338,7 +338,9 @@ Resources:
   # Route from the private subnet to ROSA cluster
   rCustomerPrivateRoute2:
     Type: AWS::EC2::Route
-    DependsOn: rCustomerVpcPrivateRouteTable
+    DependsOn: 
+      - rCustomerVpcPrivateRouteTable
+      - rCustomerTransitGatewayAttachment
     Properties:
       RouteTableId:
         Ref: rCustomerVpcPrivateRouteTable
