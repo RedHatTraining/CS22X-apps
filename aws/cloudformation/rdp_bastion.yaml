@@ -1,7 +1,8 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates a bastion host based on Mate AMI on a new VPC(customer).
+  This template creates a bastion host based on Mate AMI on a new VPC
+  (customer).
   This bastion host will be used to connect to the ROSA cluster, run oc commands
   and view the OpenShift console.
 
