@@ -92,81 +92,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-vpc"]]
-  # Default Network ACLs (see https://access.redhat.com/documentation/en-us/
-  # red_hat_openshift_service_on_aws/4/html-single/
-  # install_rosa_classic_clusters/index#osd-aws-privatelink-required-resources.
-  # adoc_rosa-aws-privatelink-creating-cluster)
+  #Modify default vpc nacl to deny all inbound
   rInboundNetworkACLRule1:
-    Type: AWS::EC2::NetworkAclEntry
-    Properties:
-      NetworkAclId:
-        Fn::GetAtt:
-          - rCustomerVpc
-          - DefaultNetworkAcl
-      RuleNumber: 50
-      Protocol: 6
-      RuleAction: allow
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: 1024
-        To: 65535
-  rInboundNetworkACLRule2:
-    Type: AWS::EC2::NetworkAclEntry
-    Properties:
-      NetworkAclId:
-        Fn::GetAtt:
-          - rCustomerVpc
-          - DefaultNetworkAcl
-      RuleNumber: 51
-      Protocol: 6
-      RuleAction: allow
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: 80
-        To: 80
-  rInboundNetworkACLRule3:
-    Type: AWS::EC2::NetworkAclEntry
-    Properties:
-      NetworkAclId:
-        Fn::GetAtt:
-          - rCustomerVpc
-          - DefaultNetworkAcl
-      RuleNumber: 52
-      Protocol: 6
-      RuleAction: allow
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: 443
-        To: 443
-  rInboundNetworkACLRule4:
-    Type: AWS::EC2::NetworkAclEntry
-    Properties:
-      NetworkAclId:
-        Fn::GetAtt:
-          - rCustomerVpc
-          - DefaultNetworkAcl
-      RuleNumber: 53
-      Protocol: 6
-      RuleAction: allow
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: 22
-        To: 22
-  rInboundNetworkACLRule5:
-    Type: AWS::EC2::NetworkAclEntry
-    Properties:
-      NetworkAclId:
-        Fn::GetAtt:
-          - rCustomerVpc
-          - DefaultNetworkAcl
-      RuleNumber: 54
-      Protocol: 6
-      RuleAction: allow
-      CidrBlock: 0.0.0.0/0
-      PortRange:
-        From: 3389
-        To: 3389
-  rInboundNetworkACLRule6:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
       NetworkAclId:
@@ -196,6 +123,113 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet"]]
 
+  #New nacl for private subnet
+  rNetworkAclCustomerVpcPrivateSubnet:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: 
+        Ref: rCustomerVpc
+      Tags:
+       - Key: Name
+         Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet"]]
+  rNetworkAclAssociationCustomerVpcPrivateSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn: 
+      - rCustomerVpcPrivateSubnet
+      - rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPrivateSubnet
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+  #Allow outbound access to allow download of oc cli
+  rCustomerVpcPrivateSubnetOutboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPrivateSubnet
+       RuleNumber: 50
+       Protocol: 6
+       Egress: true
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 443
+         To: 443
+  rCustomerVpcPrivateSubnetOutboundNetworkAclRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPrivateSubnet
+       RuleNumber: 51
+       Protocol: 6
+       Egress: true
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 80
+         To: 80
+  #Allow outbound access to ROSA cluster
+  rCustomerVpcPrivateSubnetOutboundNetworkAclRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPrivateSubnet
+       RuleNumber: 52
+       Protocol: 6
+       Egress: true
+       RuleAction: allow
+       CidrBlock:
+        Fn::ImportValue: RosaVpcCidr
+       PortRange:
+         From: 6443
+         To: 6443
+  rCustomerVpcPrivateSubnetInboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPrivateSubnet
+       RuleNumber: 50
+       Protocol: 6
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 1024
+         To: 65535
+  #Allow Inbound access from ROSA cluster via tg
+  rCustomerVpcPrivateSubnetInboundNetworkAclRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPrivateSubnet
+       RuleNumber: 51
+       Protocol: 6
+       RuleAction: allow
+       CidrBlock:
+         Ref: pCustomerVpcCidrBlock
+       PortRange:
+         From: 80
+         To: 80
+  rCustomerVpcPrivateSubnetInboundNetworkAclRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPrivateSubnet
+       RuleNumber: 52
+       Protocol: 6
+       RuleAction: allow
+       CidrBlock:
+         Ref: pCustomerVpcCidrBlock
+       PortRange:
+         From: 443
+         To: 443
+
   # Public subnet in the customer VPC
   rCustomerVpcPublicSubnet:
     Type: AWS::EC2::Subnet
@@ -212,6 +246,53 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-public-subnet"]]
+
+  #New nacl for public subnet
+  rNetworkAclCustomerVpcPublicSubnet:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+       VpcId: 
+        Ref: rCustomerVpc
+       Tags:
+       - Key: Name
+         Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-public-subnet"]]
+  rNetworkAclAssociationCustomerVpcPublicSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn: 
+      - rCustomerVpcPublicSubnet
+      - rNetworkAclCustomerVpcPublicSubnet
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPublicSubnet
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPublicSubnet
+  rCustomerVpcPublicSubnetOutboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPublicSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPublicSubnet
+       RuleNumber: 50
+       Protocol: 6
+       Egress: true
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 0
+         To: 65535
+  rCustomerVpcPublicSubnetInboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPublicSubnet
+    Properties:
+       NetworkAclId:
+         Ref: rNetworkAclCustomerVpcPublicSubnet
+       RuleNumber: 50
+       Protocol: 6
+       RuleAction: allow
+       CidrBlock: 0.0.0.0/0
+       PortRange:
+         From: 0
+         To: 65535
 
   # Internet gateway
   rInternetGateway:
@@ -251,61 +332,6 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat"]]
 
-  # Transit gateway attachment for private subnet in customer vpc
-  rCustomerTransitGatewayAttachment:
-    Type: AWS::EC2::TransitGatewayAttachment
-    Properties:
-      SubnetIds:
-        - Ref: rCustomerVpcPrivateSubnet
-      TransitGatewayId:
-        Fn::ImportValue: TransitGateway
-      VpcId:
-        Ref: rCustomerVpc
-      Tags:
-        - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-tgw-customer-vpc-attachment"]]
-
-  # Transit gateway route table (Customer)
-  rTransitGatewayCustomerRouteTable:
-    Type: AWS::EC2::TransitGatewayRouteTable
-    Properties:
-      TransitGatewayId:
-        Fn::ImportValue: TransitGateway
-      Tags:
-        - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-tgw-customer-rt"]]
-  rCustomerTransitGatewayRouteTableAssociation:
-    Type: AWS::EC2::TransitGatewayRouteTableAssociation
-    DependsOn:
-      - rCustomerTransitGatewayAttachment
-      - rTransitGatewayCustomerRouteTable
-    Properties:
-      TransitGatewayAttachmentId:
-        Ref: rCustomerTransitGatewayAttachment
-      TransitGatewayRouteTableId:
-        Ref: rTransitGatewayCustomerRouteTable
-  # Add route to existing TG for customer VPC
-  rCustomerTransitGatewayRoute:
-    Type: AWS::EC2::TransitGatewayRoute
-    Properties:
-      DestinationCidrBlock:
-        Ref: pCustomerVpcCidrBlock
-      TransitGatewayAttachmentId:
-        Ref: rCustomerTransitGatewayAttachment
-      TransitGatewayRouteTableId:
-        Fn::ImportValue: TransitGatewayRosaRouteTable
-  # Enable the Rosa TG attachment to propagate its rt to cu tg rt
-  rPropagateRosaVPCRoute:
-    Type: AWS::EC2::TransitGatewayRouteTablePropagation
-    DependsOn:
-      - rTransitGatewayCustomerRouteTable
-      - rCustomerTransitGatewayRoute
-    Properties:
-      TransitGatewayAttachmentId:
-        Fn::ImportValue: RosaTransitGatewayAttachment
-      TransitGatewayRouteTableId:
-        Ref: rTransitGatewayCustomerRouteTable
-
   # Customer VPC private subnet route table
   rCustomerVpcPrivateRouteTable:
     Type: AWS::EC2::RouteTable
@@ -336,19 +362,6 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId:
         Ref: rNATGateway
-  # Route from the private subnet to ROSA cluster
-  rCustomerPrivateRoute2:
-    Type: AWS::EC2::Route
-    DependsOn: 
-      - rCustomerVpcPrivateRouteTable
-      - rCustomerTransitGatewayAttachment
-    Properties:
-      RouteTableId:
-        Ref: rCustomerVpcPrivateRouteTable
-      DestinationCidrBlock:
-        Fn::ImportValue: RosaVpcCidr
-      TransitGatewayId:
-        Fn::ImportValue: TransitGateway
 
   # Customer VPC public subnet route table
   rCustomerVpcPublicRouteTable:
@@ -437,16 +450,25 @@ Outputs:
     Value: !Ref rCustomerVpc
     Export:
       Name: !Sub "${AWS::StackName}-CustomerVPC"
+  oInboundNetworkACLRule1:
+    Description: NACL rule to deny all inbound traffic in customer VPC
+    Value: !Ref rInboundNetworkACLRule1
   oCustomerVPCPrivateSubnet:
     Description: Customer VPC Private Subnet
     Value: !Ref rCustomerVpcPrivateSubnet
     Export:
       Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnet"
+  oNetworkAclCustomerVpcPrivateSubnet:
+    Description: Nacl for private subnet in customer vpc
+    Value: !Ref rNetworkAclCustomerVpcPrivateSubnet
   oCustomerVPCPublicSubnet:
     Description: Customer VPC Public Subnet
     Value: !Ref rCustomerVpcPublicSubnet
     Export:
       Name: !Sub "${AWS::StackName}-CustomerVPCPublicSubnet"
+  oNetworkAclCustomerVpcPublicSubnet:
+    Description: Nacl for public subnet in customer vpc
+    Value: !Ref rNetworkAclCustomerVpcPublicSubnet
   oInternetGateway:
     Description: Internet Gateway
     Value: !Ref rInternetGateway
@@ -462,22 +484,6 @@ Outputs:
     Value: !Ref rNATGateway
     Export:
       Name: !Sub "${AWS::StackName}-NATGateway"
-  oTransitGatewayAttachment:
-    Description: Transit Gateway Attachment for Customer VPC
-    Value: !Ref rCustomerTransitGatewayAttachment
-    Export:
-      Name: !Sub "${AWS::StackName}-CustomerTransitGatewayAttachment"
-  oTransitGatewayCustomerRouteTable:
-    Description: Transit Gateway Route Table for Customer VPC
-    Value: !Ref rTransitGatewayCustomerRouteTable
-    Export:
-      Name: !Sub "${AWS::StackName}-TransitGatewayCustomerRouteTable"
-  oCustomerTransitGatewayRoute:
-    Description: Add new route to Cu vpc in existing Transit gateway route table
-    Value: !Ref rCustomerTransitGatewayRoute
-  oPropagateRosaVPCRoute:
-    Description: Propagate transit gateway route to the Customer VPC
-    Value: !Ref rPropagateRosaVPCRoute
   oCustomerVPCPrivateRouteTable:
     Description: Route Table for Customer VPC Private Subnet
     Value: !Ref rCustomerVpcPrivateRouteTable
