@@ -38,11 +38,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-vpn"]]
-  # Default Network ACLs (see https://access.redhat.com/documentation/en-us/
-  # red_hat_openshift_service_on_aws/4/html-single/
-  # install_rosa_classic_clusters/index#osd-aws-privatelink-required-resources.
-  # adoc_rosa-aws-privatelink-creating-cluster)
-
+ 
   # Private subnet in the customer VPC
   rCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::Subnet
@@ -60,6 +56,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
 
   #New nacl for private subnet
   rNetworkAclCustomerVpcVpnPrivateSubnet:
@@ -70,6 +68,8 @@ Resources:
       Tags:
        - Key: Name
          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet-vpn"]]
+       - Key: "redhattraining:course-sku"
+         Value: CS220
   rNetworkAclAssociationCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn: 
@@ -86,6 +86,11 @@ Resources:
     Type: AWS::EC2::KeyPair
     Properties:
       KeyName: ec2KeyPairVpn
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-ec2-keypair-customer-vpc-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   
   # Security Group by default
   #rEc2InstanceSecurityGroup:
@@ -106,7 +111,12 @@ Resources:
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
-          SubnetId: !Ref rCustomerVpcVpnPrivateSubnet 
+          SubnetId: !Ref rCustomerVpcVpnPrivateSubnet
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-customer-vpc-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
 
 
 
