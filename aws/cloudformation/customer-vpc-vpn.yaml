@@ -1,8 +1,8 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates a new VPC Customer to used 
-  on the VPN exercise, and also creates an Instance 
+  This template creates a new VPC Customer to used
+  on the VPN exercise, and also creates an Instance
   on the private subnet for testing purposes.
 
 Parameters:
@@ -40,7 +40,7 @@ Resources:
           Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-vpn"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
- 
+
   # Private subnet in the customer VPC
   rCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::Subnet
@@ -61,20 +61,20 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220
 
-  #New nacl for private subnet
+  # New nacl for private subnet
   rNetworkAclCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::NetworkAcl
     Properties:
-      VpcId: 
+      VpcId:
         Ref: rCustomerVpcVpn
       Tags:
-       - Key: Name
-         Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet-vpn"]]
-       - Key: "redhattraining:course-sku"
-         Value: CS220
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-subnet-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rNetworkAclAssociationCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
-    DependsOn: 
+    DependsOn:
       - rCustomerVpcVpnPrivateSubnet
       - rNetworkAclCustomerVpcVpnPrivateSubnet
     Properties:
@@ -82,7 +82,7 @@ Resources:
         Ref: rCustomerVpcVpnPrivateSubnet
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcVpnPrivateSubnet
-  
+
   #Create new keypair that it will store at /ec2/keypair/key-pair-id
   rKeyPairEc2Vpn:
     Type: AWS::EC2::KeyPair
@@ -93,7 +93,7 @@ Resources:
           Value: !Join ["", [!Ref pTagprefix, "-ec2-keypair-customer-vpc-vpn"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
-  
+
   # Security Group by default
   #rEc2InstanceSecurityGroup:
   #  Type: AWS::EC2::SecurityGroup
@@ -101,7 +101,7 @@ Resources:
   #    GroupDescription: Enable SSH access via port 22
   #    VpcId: !Ref rCustomerVpcVpnPrivateSubnet
 
-  # Create EC2 instance 
+  # Create EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
     Properties:
@@ -119,12 +119,3 @@ Resources:
           Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-customer-vpc-vpn"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
-
-
-
-
-
-
-  
-      
-
