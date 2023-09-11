@@ -38,6 +38,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
  
   # Private subnet in the customer VPC
   rCustomerVpcVpnPrivateSubnet:
