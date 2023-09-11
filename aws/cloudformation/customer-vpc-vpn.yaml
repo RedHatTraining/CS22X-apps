@@ -1,0 +1,118 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates a new VPC Customer to used 
+  on the VPN exercise, and also creates an Instance 
+  on the private subnet for testing purposes.
+
+Parameters:
+  pTagprefix:
+    Description: Use the course code to prepend resource tags
+    Type: String
+    Default: cs220-cluster
+  pCustomerVpcVpnCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.0.0/16
+    Description: Customer VPC CIDR block (10.2.0.0/16 for example).
+    Type: String
+  pCustomerVpcVpnPrivateSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.0.0/24
+    Description: >
+      CIDR block for the private subnet in the customer VPC
+      (10.3.1.0/24 for example).
+    Type: String
+  pAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+
+Resources:
+  # Customer VPC for the VPN exercise
+  rCustomerVpcVpn:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: pCustomerVpcVpnCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-vpn"]]
+  # Default Network ACLs (see https://access.redhat.com/documentation/en-us/
+  # red_hat_openshift_service_on_aws/4/html-single/
+  # install_rosa_classic_clusters/index#osd-aws-privatelink-required-resources.
+  # adoc_rosa-aws-privatelink-creating-cluster)
+
+  # Private subnet in the customer VPC
+  rCustomerVpcVpnPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpcVpn
+    Properties:
+      VpcId:
+        Ref: rCustomerVpcVpn
+      CidrBlock:
+        Ref: pCustomerVpcVpnPrivateSubnetCidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn"]]
+
+  #New nacl for private subnet
+  rNetworkAclCustomerVpcVpnPrivateSubnet:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: 
+        Ref: rCustomerVpcVpn
+      Tags:
+       - Key: Name
+         Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet-vpn"]]
+  rNetworkAclAssociationCustomerVpcVpnPrivateSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn: 
+      - rCustomerVpcVpnPrivateSubnet
+      - rNetworkAclCustomerVpcVpnPrivateSubnet
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcVpnPrivateSubnet
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcVpnPrivateSubnet
+  
+  #Create new keypair that it will store at /ec2/keypair/key-pair-id
+  rKeyPairEc2Vpn:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: ec2KeyPairVpn
+  
+  # Security Group by default
+  #rEc2InstanceSecurityGroup:
+  #  Type: AWS::EC2::SecurityGroup
+  #  Properties:
+  #    GroupDescription: Enable SSH access via port 22
+  #    VpcId: !Ref rCustomerVpcVpnPrivateSubnet
+
+  # Create EC2 instance 
+  rEc2InstaceVpn:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      KeyName: ec2KeyPairVpn
+      ImageId: !Ref pAmiId
+      NetworkInterfaces:
+        -
+          AssociatePublicIpAddress: false
+          DeviceIndex: 0
+          DeleteOnTermination: true
+          SubnetId: !Ref rCustomerVpcVpnPrivateSubnet 
+
+
+
+
+
+
+  
+      
+
