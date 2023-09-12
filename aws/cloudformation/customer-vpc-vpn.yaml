@@ -13,7 +13,7 @@ Parameters:
   pCustomerVpcVpnCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.3.0.0/16
-    Description: Customer VPC CIDR block (10.2.0.0/16 for example).
+    Description: Customer VPC CIDR block (10.3.0.0/16 for example).
     Type: String
   pCustomerVpcVpnPrivateSubnetCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
@@ -83,7 +83,7 @@ Resources:
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcVpnPrivateSubnet
 
-  #Create new keypair that it will store at /ec2/keypair/key-pair-id
+  # Create new keypair that it will store at /ec2/keypair/key-pair-id
   rKeyPairEc2Vpn:
     Type: AWS::EC2::KeyPair
     Properties:
@@ -95,21 +95,34 @@ Resources:
           Value: CS220
 
   # Security Group by default
-  #rEc2InstanceSecurityGroup:
-  #  Type: AWS::EC2::SecurityGroup
-  #  Properties:
-  #    GroupDescription: Enable SSH access via port 22
-  #    VpcId: !Ref rCustomerVpcVpnPrivateSubnet
+  rEc2InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      VpcId: !Ref rCustomerVpcVpn
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-vpn-sg"]]
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
 
   # Create EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
+    DependsOn:
+      - rEc2InstanceSecurityGroup
+      - rCustomerVpcVpnPrivateSubnet
     Properties:
       InstanceType: t2.micro
       KeyName: ec2KeyPairVpn
       ImageId: !Ref pAmiId
       NetworkInterfaces:
         -
+          GroupSet:
+            - !Ref rEc2InstanceSecurityGroup
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
@@ -119,3 +132,9 @@ Resources:
           Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-customer-vpc-vpn"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
+
+Outputs:
+  oStackName:
+    Description: Name of the stack
+    Value:
+      Ref: AWS::StackName
