@@ -83,7 +83,7 @@ Resources:
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcVpnPrivateSubnet
 
-  # Create new keypair that it will store at /ec2/keypair/key-pair-id
+  # Keypair is stored in AWS Systems Manager at /ec2/keypair/<key-pair-id>
   rKeyPairEc2Vpn:
     Type: AWS::EC2::KeyPair
     Properties:
