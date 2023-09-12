@@ -92,7 +92,9 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-bastion"]]
-  #Modify default vpc nacl to deny all inbound
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # Modify default vpc nacl to deny all inbound
   rInboundNetworkACLRule1:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
@@ -122,19 +124,23 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
 
-  #New nacl for private subnet
+  # New nacl for private subnet
   rNetworkAclCustomerVpcPrivateSubnet:
     Type: AWS::EC2::NetworkAcl
     Properties:
-      VpcId: 
+      VpcId:
         Ref: rCustomerVpc
       Tags:
-       - Key: Name
-         Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet"]]
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rNetworkAclAssociationCustomerVpcPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
-    DependsOn: 
+    DependsOn:
       - rCustomerVpcPrivateSubnet
       - rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -142,93 +148,93 @@ Resources:
         Ref: rCustomerVpcPrivateSubnet
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
-  #Allow outbound access to allow download of oc cli
+  # Allow outbound access to allow download of oc cli
   rCustomerVpcPrivateSubnetOutboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPrivateSubnet
-       RuleNumber: 50
-       Protocol: 6
-       Egress: true
-       RuleAction: allow
-       CidrBlock: 0.0.0.0/0
-       PortRange:
-         From: 443
-         To: 443
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 50
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 443
+        To: 443
   rCustomerVpcPrivateSubnetOutboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPrivateSubnet
-       RuleNumber: 51
-       Protocol: 6
-       Egress: true
-       RuleAction: allow
-       CidrBlock: 0.0.0.0/0
-       PortRange:
-         From: 80
-         To: 80
-  #Allow outbound access to ROSA cluster
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 51
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+  # Allow outbound access to ROSA cluster
   rCustomerVpcPrivateSubnetOutboundNetworkAclRule3:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPrivateSubnet
-       RuleNumber: 52
-       Protocol: 6
-       Egress: true
-       RuleAction: allow
-       CidrBlock:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 52
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock:
         Fn::ImportValue: RosaVpcCidr
-       PortRange:
-         From: 6443
-         To: 6443
+      PortRange:
+        From: 6443
+        To: 6443
   rCustomerVpcPrivateSubnetInboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPrivateSubnet
-       RuleNumber: 50
-       Protocol: 6
-       RuleAction: allow
-       CidrBlock: 0.0.0.0/0
-       PortRange:
-         From: 1024
-         To: 65535
-  #Allow Inbound access from ROSA cluster via tg
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1024
+        To: 65535
+  # Allow Inbound access from ROSA cluster via tg
   rCustomerVpcPrivateSubnetInboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPrivateSubnet
-       RuleNumber: 51
-       Protocol: 6
-       RuleAction: allow
-       CidrBlock:
-         Ref: pCustomerVpcCidrBlock
-       PortRange:
-         From: 80
-         To: 80
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 51
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 80
+        To: 80
   rCustomerVpcPrivateSubnetInboundNetworkAclRule3:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPrivateSubnet
-       RuleNumber: 52
-       Protocol: 6
-       RuleAction: allow
-       CidrBlock:
-         Ref: pCustomerVpcCidrBlock
-       PortRange:
-         From: 443
-         To: 443
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 52
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 443
+        To: 443
 
   # Public subnet in the customer VPC
   rCustomerVpcPublicSubnet:
@@ -246,19 +252,22 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-public-subnet"]]
-
-  #New nacl for public subnet
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # New nacl for public subnet
   rNetworkAclCustomerVpcPublicSubnet:
     Type: AWS::EC2::NetworkAcl
     Properties:
-       VpcId: 
+      VpcId:
         Ref: rCustomerVpc
-       Tags:
-       - Key: Name
-         Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-public-subnet"]]
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-public-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rNetworkAclAssociationCustomerVpcPublicSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
-    DependsOn: 
+    DependsOn:
       - rCustomerVpcPublicSubnet
       - rNetworkAclCustomerVpcPublicSubnet
     Properties:
@@ -270,29 +279,29 @@ Resources:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPublicSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPublicSubnet
-       RuleNumber: 50
-       Protocol: 6
-       Egress: true
-       RuleAction: allow
-       CidrBlock: 0.0.0.0/0
-       PortRange:
-         From: 0
-         To: 65535
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPublicSubnet
+      RuleNumber: 50
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 0
+        To: 65535
   rCustomerVpcPublicSubnetInboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPublicSubnet
     Properties:
-       NetworkAclId:
-         Ref: rNetworkAclCustomerVpcPublicSubnet
-       RuleNumber: 50
-       Protocol: 6
-       RuleAction: allow
-       CidrBlock: 0.0.0.0/0
-       PortRange:
-         From: 0
-         To: 65535
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPublicSubnet
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 0
+        To: 65535
 
   # Internet gateway
   rInternetGateway:
@@ -301,6 +310,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-igw"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     DependsOn: rCustomerVpc
@@ -318,6 +329,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat-eip"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rNATGateway:
     Type: AWS::EC2::NatGateway
     DependsOn: rElasticIP
@@ -331,6 +344,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
 
   # Customer VPC private subnet route table
   rCustomerVpcPrivateRouteTable:
@@ -342,6 +357,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-private-rt"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rCustomerVpcPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -373,6 +390,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-customer-public-rt"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   rCustomerPublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -405,6 +424,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-bastion-sg"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
       SecurityGroupIngress:
         - CidrIp: !Ref pSshLocation
           FromPort: 22
@@ -438,6 +459,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-bastion-instance"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
 
 Outputs:
   oBastionHost:
