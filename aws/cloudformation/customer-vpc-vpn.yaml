@@ -1,7 +1,7 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates a new VPC Customer to used
+  This template creates a new Customer VPC to used
   on the VPN exercise, and also creates an Instance
   on the private subnet for testing purposes.
 
@@ -61,7 +61,7 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220
 
-  # New nacl for private subnet
+  # NACL for the private subnet
   rNetworkAclCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::NetworkAcl
     Properties:
@@ -94,7 +94,7 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220
 
-  # Security Group by default
+  # Default Security Group for the VPC
   rEc2InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -109,7 +109,7 @@ Resources:
           ToPort: 22
           IpProtocol: tcp
 
-  # Create EC2 instance
+  # Create an EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
     DependsOn:
