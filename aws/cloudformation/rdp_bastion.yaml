@@ -91,7 +91,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-customer-vpc"]]
+          Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-bastion"]]
   #Modify default vpc nacl to deny all inbound
   rInboundNetworkACLRule1:
     Type: AWS::EC2::NetworkAclEntry
