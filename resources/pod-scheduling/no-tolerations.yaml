@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: no-tolerations
+  name: no-tolerations
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: no-tolerations
+  template:
+    metadata:
+      labels:
+        app: no-tolerations
+    spec:
+      nodeSelector:
+        workload: memory
+      containers:
+        - name: mariadb
+          image: registry.redhat.io/rhel9/mariadb-105
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_USER
+              value: operator1
+            - name: MYSQL_PASSWORD
+              value: redhat
+            - name: MYSQL_ROOT_PASSWORD
+              value: redhat
+            - name: MYSQL_DATABASE
+              value: do120db
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -i
+                - -c
+                - MYSQL_PWD="$MYSQL_PASSWORD" mysqladmin -u $MYSQL_USER ping
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -i
+                - -c
+                - MYSQL_PWD="$MYSQL_PASSWORD" mysqladmin -u $MYSQL_USER ping
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault

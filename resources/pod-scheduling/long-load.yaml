@@ -1,0 +1,82 @@
+---
+apiVersion: v1
+kind: List
+metadata: {}
+items:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: long-load
+      name: long-load
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app: long-load
+      template:
+        metadata:
+          labels:
+            app: long-load
+        spec:
+          nodeSelector:
+            workload: memory
+          tolerations:
+            - key: "memory-optimized"
+              operator: "Equal"
+              value: "32GiB"
+              effect: "NoSchedule"
+          containers:
+            - name: long-load
+              image: quay.io/redhattraining/long-load:v1
+              resources:
+                requests:
+                  memory: 20Gi
+              ports:
+                - containerPort: 3000
+              readinessProbe:
+                initialDelaySeconds: 10
+                httpGet:
+                  path: /health
+                  port: 3000
+              livenessProbe:
+                initialDelaySeconds: 30
+                httpGet:
+                  path: /health
+                  port: 3000
+              securityContext:
+                capabilities:
+                  drop:
+                    - ALL
+                allowPrivilegeEscalation: false
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: long-load
+      name: long-load
+    spec:
+      ports:
+        - protocol: TCP
+          port: 3000
+          targetPort: 3000
+      selector:
+        app: long-load
+  - apiVersion: route.openshift.io/v1
+    kind: Route
+    metadata:
+      labels:
+        app: long-load
+      name: long-load
+    spec:
+      port:
+        targetPort: 3000
+      to:
+        kind: Service
+        name: long-load
+      tls:
+        termination: edge
