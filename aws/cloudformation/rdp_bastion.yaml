@@ -1,0 +1,524 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates a bastion host based on Mate AMI on a new VPC
+  (customer).
+  This bastion host will be used to connect to the ROSA cluster, run oc commands
+  and view the OpenShift console.
+
+Parameters:
+  pTagprefix:
+    Description: Use the course code to prepend resource tags
+    Type: String
+    Default: cs220
+  pCustomerVpcCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.0.0/16
+    Description: Customer VPC CIDR block (10.2.0.0/16 for example).
+    Type: String
+  pCustomerVpcPrivateSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.0.0/24
+    Description: >
+      CIDR block for the private subnet in the customer VPC
+      (10.2.1.0/24 for example).
+    Type: String
+  pCustomerVpcPublicSubnetACidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.2.0/24
+    Description: >
+      CIDR block for the public subnet in the customer VPC
+      (10.2.2.0/24 for example).
+    Type: String
+  pInstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: "t3.micro"
+  pSshLocation:
+    Description: The IP address range that can SSH to the EC2 instance
+    Type: String
+    Default: "0.0.0.0/0"
+  pRdpLocation:
+    Description: The IP address range that can use RDP to the EC2 instance
+    Type: String
+    Default: "0.0.0.0/0"
+
+Mappings:
+  RegionMap:
+    ap-south-1:
+      ami: ami-061183ad486d5dd8a
+    eu-north-1:
+      ami: ami-03a2ff446d5bf5187
+    eu-west-3:
+      ami: ami-06e90f3404ebc4277
+    eu-west-2:
+      ami: ami-0ef262972e641bb3e
+    eu-west-1:
+      ami: ami-0ac03fb170870f7c7
+    ap-northeast-3:
+      ami: ami-01d7109b399c6b223
+    ap-northeast-2:
+      ami: ami-06b9122710049dfe7
+    ap-northeast-1:
+      ami: ami-0d5142f63c808d143
+    ca-central-1:
+      ami: ami-04609b5b156500b17
+    sa-east-1:
+      ami: ami-0b123273fd25fe833
+    ap-southeast-1:
+      ami: ami-0fcd2e9ac9a168217
+    ap-southeast-2:
+      ami: ami-09fb3a51968a858cd
+    eu-central-1:
+      ami: ami-0087bd2f5c26af5ca
+    us-east-1:
+      ami: ami-005b11f8b84489615
+    us-east-2:
+      ami: ami-08778753ef37aa408
+    us-west-1:
+      ami: ami-0267fc24ee0102728
+    us-west-2:
+      ami: ami-081aaface2871d0d0
+
+Resources:
+  # Customer VPC
+  rCustomerVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-bastion"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # Modify default vpc nacl to deny all inbound
+  rInboundNetworkACLRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rCustomerVpc
+          - DefaultNetworkAcl
+      RuleNumber: 60
+      Protocol: -1
+      RuleAction: deny
+      CidrBlock: 0.0.0.0/0
+
+  # Private subnet in the customer VPC
+  rCustomerVpcPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      CidrBlock:
+        Ref: pCustomerVpcPrivateSubnetCidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
+  # New nacl for private subnet
+  rNetworkAclCustomerVpcPrivateSubnet:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-private-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rNetworkAclAssociationCustomerVpcPrivateSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn:
+      - rCustomerVpcPrivateSubnet
+      - rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPrivateSubnet
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+  # Allow outbound access to allow download of oc cli
+  rCustomerVpcPrivateSubnetOutboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 50
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 443
+        To: 443
+  rCustomerVpcPrivateSubnetOutboundNetworkAclRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 51
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+  # Allow outbound access to ROSA cluster
+  rCustomerVpcPrivateSubnetOutboundNetworkAclRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 52
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock:
+        Fn::ImportValue: RosaVpcCidr
+      PortRange:
+        From: 6443
+        To: 6443
+  rCustomerVpcPrivateSubnetInboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1024
+        To: 65535
+  # Allow Inbound access from ROSA cluster via tg
+  rCustomerVpcPrivateSubnetInboundNetworkAclRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 51
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 80
+        To: 80
+  rCustomerVpcPrivateSubnetInboundNetworkAclRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 52
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 443
+        To: 443
+
+  # Public subnet in the customer VPC
+  rCustomerVpcPublicSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      CidrBlock:
+        Ref: pCustomerVpcPublicSubnetACidrBlock
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # New nacl for public subnet
+  rNetworkAclCustomerVpcPublicSubnet:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-public-subnet"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rNetworkAclAssociationCustomerVpcPublicSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn:
+      - rCustomerVpcPublicSubnet
+      - rNetworkAclCustomerVpcPublicSubnet
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPublicSubnet
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPublicSubnet
+  rCustomerVpcPublicSubnetOutboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPublicSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPublicSubnet
+      RuleNumber: 50
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 0
+        To: 65535
+  rCustomerVpcPublicSubnetInboundNetworkAclRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPublicSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPublicSubnet
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 0
+        To: 65535
+
+  # Internet gateway
+  rInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-igw"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      InternetGatewayId:
+        Ref: rInternetGateway
+
+  # NAT gateway
+  rElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat-eip"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rNATGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: rElasticIP
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - rElasticIP
+          - AllocationId
+      SubnetId:
+        Ref: rCustomerVpcPublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-nat"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
+  # Customer VPC private subnet route table
+  rCustomerVpcPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-rt"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rCustomerVpcPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - rCustomerVpcPrivateSubnet
+      - rCustomerVpcPrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPrivateSubnet
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+  # Route from the private subnet to NAT gateway for Internet
+  rCustomerPrivateRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: rCustomerVpcPrivateRouteTable
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: rNATGateway
+
+  # Customer VPC public subnet route table
+  rCustomerVpcPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-public-rt"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rCustomerPublicSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - rCustomerVpcPublicSubnet
+      - rCustomerVpcPublicRouteTable
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcPublicSubnet
+      RouteTableId:
+        Ref: rCustomerVpcPublicRouteTable
+  # Route from the public subnet to NAT gateway for Internet
+  rCustomerPublicRoute1:
+    Type: AWS::EC2::Route
+    DependsOn: rCustomerVpcPublicRouteTable
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: rInternetGateway
+
+  # Security Group for bastion
+  rSecurityGroupBastion:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpc
+    Properties:
+      GroupDescription: Enable SSH and RDP access
+      GroupName: Bastion Host Security Group
+      VpcId: !Ref rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-bastion-sg"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+      SecurityGroupIngress:
+        - CidrIp: !Ref pSshLocation
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+        - CidrIp: !Ref pRdpLocation
+          FromPort: 3389
+          ToPort: 3389
+          IpProtocol: tcp
+
+  # Bastion EC2 instance
+  rBastionHost:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - rSecurityGroupBastion
+      - rCustomerVpcPrivateSubnet
+    Properties:
+      InstanceType: !Ref pInstanceType
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref 'AWS::Region'
+        - ami
+      NetworkInterfaces:
+        -
+          GroupSet:
+            - !Ref rSecurityGroupBastion
+          AssociatePublicIpAddress: false
+          DeviceIndex: 0
+          DeleteOnTermination: true
+          SubnetId: !Ref rCustomerVpcPrivateSubnet
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-bastion-instance"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
+Outputs:
+  oBastionHost:
+    Description: Bastion Host Instance
+    Value: !Ref rBastionHost
+    Export:
+      Name: !Sub "${AWS::StackName}-BastionHost"
+  oCustomerVPC:
+    Description: Customer VPC
+    Value: !Ref rCustomerVpc
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPC"
+  oInboundNetworkACLRule1:
+    Description: NACL rule to deny all inbound traffic in customer VPC
+    Value: !Ref rInboundNetworkACLRule1
+  oCustomerVPCPrivateSubnet:
+    Description: Customer VPC Private Subnet
+    Value: !Ref rCustomerVpcPrivateSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnet"
+  oNetworkAclCustomerVpcPrivateSubnet:
+    Description: Nacl for private subnet in customer vpc
+    Value: !Ref rNetworkAclCustomerVpcPrivateSubnet
+  oCustomerVPCPublicSubnet:
+    Description: Customer VPC Public Subnet
+    Value: !Ref rCustomerVpcPublicSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPublicSubnet"
+  oNetworkAclCustomerVpcPublicSubnet:
+    Description: Nacl for public subnet in customer vpc
+    Value: !Ref rNetworkAclCustomerVpcPublicSubnet
+  oInternetGateway:
+    Description: Internet Gateway
+    Value: !Ref rInternetGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-InternetGateway"
+  oElasticIP:
+    Description: Elastic IP
+    Value: !Ref rElasticIP
+    Export:
+      Name: !Sub "${AWS::StackName}-ElasticIP"
+  oNATGateway:
+    Description: NAT Gateway
+    Value: !Ref rNATGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-NATGateway"
+  oCustomerVPCPrivateRouteTable:
+    Description: Route Table for Customer VPC Private Subnet
+    Value: !Ref rCustomerVpcPrivateRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateRouteTable"
+  oCustomerVPCPublicRouteTable:
+    Description: Route Table for Customer VPC Public Subnet
+    Value: !Ref rCustomerVpcPublicRouteTable
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPublicRouteTable"
+  oSecurityGroupBastion:
+    Description: Security Group for Bastion Host
+    Value: !Ref rSecurityGroupBastion
+    Export:
+      Name: !Sub "${AWS::StackName}-SecurityGroupBastion"
