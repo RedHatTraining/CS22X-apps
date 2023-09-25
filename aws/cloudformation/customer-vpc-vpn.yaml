@@ -44,7 +44,6 @@ Resources:
   # Private subnet in the customer VPC
   rCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::Subnet
-    DependsOn: rCustomerVpcVpn
     Properties:
       VpcId:
         Ref: rCustomerVpcVpn
