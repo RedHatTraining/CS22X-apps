@@ -553,7 +553,7 @@ Resources:
       BackupRetentionPeriod: 1
       DeleteAutomatedBackups: true
       DeletionProtection: false
-      DBSubnetGroupName: 
+      DBSubnetGroupName:
         Ref: rRdsDBSubnetGroup
       VPCSecurityGroups:
         - !Ref rSecurityGroupDatabase
