@@ -27,7 +27,7 @@ items:
                   protocol: TCP
               env:
                 - name: QUOTES_HOSTNAME
-                  value: (( add-db-endpoint-here }}
+                  value: <CHANGE_ME>
                 - name: QUOTES_USER
                   value: admin
                 - name: QUOTES_DATABASE
