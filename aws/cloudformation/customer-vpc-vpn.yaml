@@ -157,6 +157,32 @@ Resources:
           ToPort: 22
           IpProtocol: tcp
 
+# Security Group for rds
+  rSecurityGroupDatabase:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpcVpn
+    Properties:
+      GroupDescription: Enable mysql connectivity to Rosa cluster
+      GroupName: Database Security Group
+      VpcId: !Ref rCustomerVpcVpn
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-database-sg"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::ImportValue: RosaVpcCidr
+          FromPort: 3306
+          ToPort: 3306
+          IpProtocol: tcp
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::ImportValue: RosaVpcCidr
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: tcp
+
   # Create an EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
