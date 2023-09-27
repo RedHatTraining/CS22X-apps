@@ -16,11 +16,18 @@ Parameters:
     Default: 10.2.0.0/16
     Description: Customer VPC CIDR block (10.2.0.0/16 for example).
     Type: String
-  pCustomerVpcPrivateSubnetCidrBlock:
+  pCustomerVpcPrivateSubnetACidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.2.0.0/24
     Description: >
-      CIDR block for the private subnet in the customer VPC
+      CIDR block for the private subnet in first AZ of the customer VPC
+      (10.2.0.0/24 for example).
+    Type: String
+  pCustomerVpcPrivateSubnetBCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.2.1.0/24
+    Description: >
+      CIDR block for the private subnet in second AZ of the customer VPC
       (10.2.1.0/24 for example).
     Type: String
   pCustomerVpcPublicSubnetACidrBlock:
@@ -107,15 +114,15 @@ Resources:
       RuleAction: deny
       CidrBlock: 0.0.0.0/0
 
-  # Private subnet in the customer VPC
-  rCustomerVpcPrivateSubnet:
+  # Private subnets in the customer VPC
+  rCustomerVpcPrivateSubnetA:
     Type: AWS::EC2::Subnet
     DependsOn: rCustomerVpc
     Properties:
       VpcId:
         Ref: rCustomerVpc
       CidrBlock:
-        Ref: pCustomerVpcPrivateSubnetCidrBlock
+        Ref: pCustomerVpcPrivateSubnetACidrBlock
       # Uses the first AZ available
       AvailabilityZone:
         Fn::Select:
@@ -123,7 +130,26 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet"]]
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-a"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # Private subnet in second AZ. Used later to create db subnetgroup
+  rCustomerVpcPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      CidrBlock:
+        Ref: pCustomerVpcPrivateSubnetBCidrBlock
+      # Uses the second AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-b"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -141,15 +167,15 @@ Resources:
   rNetworkAclAssociationCustomerVpcPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
-      - rCustomerVpcPrivateSubnet
+      - rCustomerVpcPrivateSubnetA
       - rNetworkAclCustomerVpcPrivateSubnet
     Properties:
       SubnetId:
-        Ref: rCustomerVpcPrivateSubnet
+        Ref: rCustomerVpcPrivateSubnetA
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
   # Allow outbound access to allow download of oc cli
-  rCustomerVpcPrivateSubnetOutboundNetworkAclRule1:
+  rCustomerVpcPrivateSubnetAOutboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -163,7 +189,7 @@ Resources:
       PortRange:
         From: 443
         To: 443
-  rCustomerVpcPrivateSubnetOutboundNetworkAclRule2:
+  rCustomerVpcPrivateSubnetAOutboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -178,7 +204,7 @@ Resources:
         From: 80
         To: 80
   # Allow outbound access to ROSA cluster
-  rCustomerVpcPrivateSubnetOutboundNetworkAclRule3:
+  rCustomerVpcPrivateSubnetAOutboundNetworkAclRule3:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -193,7 +219,7 @@ Resources:
       PortRange:
         From: 6443
         To: 6443
-  rCustomerVpcPrivateSubnetInboundNetworkAclRule1:
+  rCustomerVpcPrivateSubnetAInboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -207,7 +233,7 @@ Resources:
         From: 1024
         To: 65535
   # Allow Inbound access from ROSA cluster via tg
-  rCustomerVpcPrivateSubnetInboundNetworkAclRule2:
+  rCustomerVpcPrivateSubnetAInboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -221,7 +247,7 @@ Resources:
       PortRange:
         From: 80
         To: 80
-  rCustomerVpcPrivateSubnetInboundNetworkAclRule3:
+  rCustomerVpcPrivateSubnetAInboundNetworkAclRule3:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
@@ -362,11 +388,11 @@ Resources:
   rCustomerVpcPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
-      - rCustomerVpcPrivateSubnet
+      - rCustomerVpcPrivateSubnetA
       - rCustomerVpcPrivateRouteTable
     Properties:
       SubnetId:
-        Ref: rCustomerVpcPrivateSubnet
+        Ref: rCustomerVpcPrivateSubnetA
       RouteTableId:
         Ref: rCustomerVpcPrivateRouteTable
   # Route from the private subnet to NAT gateway for Internet
@@ -441,7 +467,7 @@ Resources:
     Type: AWS::EC2::Instance
     DependsOn:
       - rSecurityGroupBastion
-      - rCustomerVpcPrivateSubnet
+      - rCustomerVpcPrivateSubnetA
     Properties:
       InstanceType: !Ref pInstanceType
       ImageId: !FindInMap
@@ -455,10 +481,85 @@ Resources:
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
-          SubnetId: !Ref rCustomerVpcPrivateSubnet
+          SubnetId: !Ref rCustomerVpcPrivateSubnetA
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-bastion-instance"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
+  # Security Group for rds
+  rSecurityGroupDatabase:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpc
+    Properties:
+      GroupDescription: Enable mysql connectivity to Rosa cluster
+      GroupName: Database Security Group
+      VpcId: !Ref rCustomerVpc
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-database-sg"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::ImportValue: RosaVpcCidr
+          FromPort: 3306
+          ToPort: 3306
+          IpProtocol: tcp
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::ImportValue: RosaVpcCidr
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: tcp
+
+
+  # Database subnet group
+  rRdsDBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupName: testdbsubnetgroup
+      DBSubnetGroupDescription: custom db subnet group
+      SubnetIds:
+        - !Ref rCustomerVpcPrivateSubnetA
+        - !Ref rCustomerVpcPrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-db-subnetgroup"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
+  # RDS mysql instance. Application on Rosa will connect to it.
+  rRdsInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.micro
+      MultiAZ: false
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Engine: mysql
+      EngineVersion: 8.0.33
+      MasterUsername: admin
+      MasterUserPassword: redhat123
+      Port: '3306'
+      DBInstanceIdentifier: rds-mysql
+      AllocatedStorage: '20'
+      DBName: quotesdb
+      StorageEncrypted: false
+      StorageType: standard
+      BackupRetentionPeriod: 1
+      DeleteAutomatedBackups: true
+      DeletionProtection: false
+      DBSubnetGroupName: 
+        Ref: rRdsDBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref rSecurityGroupDatabase
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-database-instance"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -476,11 +577,16 @@ Outputs:
   oInboundNetworkACLRule1:
     Description: NACL rule to deny all inbound traffic in customer VPC
     Value: !Ref rInboundNetworkACLRule1
-  oCustomerVPCPrivateSubnet:
-    Description: Customer VPC Private Subnet
-    Value: !Ref rCustomerVpcPrivateSubnet
+  oCustomerVPCPrivateSubnetA:
+    Description: Customer VPC Private Subnet in first AZ
+    Value: !Ref rCustomerVpcPrivateSubnetA
     Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnet"
+      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnetA"
+  oCustomerVPCPrivateSubnetB:
+    Description: Customer VPC Private Subnet in second AZ
+    Value: !Ref rCustomerVpcPrivateSubnetB
+    Export:
+      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnetB"
   oNetworkAclCustomerVpcPrivateSubnet:
     Description: Nacl for private subnet in customer vpc
     Value: !Ref rNetworkAclCustomerVpcPrivateSubnet
@@ -522,3 +628,18 @@ Outputs:
     Value: !Ref rSecurityGroupBastion
     Export:
       Name: !Sub "${AWS::StackName}-SecurityGroupBastion"
+  oSecurityGroupDatabase:
+    Description: Security Group for database
+    Value: !Ref rSecurityGroupDatabase
+    Export:
+      Name: !Sub "${AWS::StackName}-SecurityGroupDatabase"
+  oRdsDBSubnetGroup:
+    Description: Subnet group for RDS
+    Value: !Ref rRdsDBSubnetGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseSubnetGroup"
+  oRdsInstance:
+    Description: Mysql RDS instance
+    Value: !Ref rRdsInstance
+    Export:
+      Name: !Sub "${AWS::StackName}-RdsInstance"
