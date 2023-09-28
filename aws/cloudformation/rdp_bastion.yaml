@@ -40,7 +40,7 @@ Parameters:
   pInstanceType:
     Description: EC2 instance type
     Type: String
-    Default: "t3.micro"
+    Default: "t3.medium"
   pSshLocation:
     Description: The IP address range that can SSH to the EC2 instance
     Type: String
