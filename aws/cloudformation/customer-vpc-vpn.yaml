@@ -56,7 +56,7 @@ Resources:
       VpcId:
         Ref: rCustomerVpcVpn
       CidrBlock:
-        Ref: pCustomerVpcVpnSubnetACidrBlock
+        Ref: pCustomerVpcVpnPrivateSubnetACidrBlock
       # Uses the first AZ available
       AvailabilityZone:
         Fn::Select:
@@ -68,7 +68,7 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220
 
-  # Private subnet B in the customer VPC VPN
+  # Private subnet B for the RDS
   rCustomerVpcVpnPrivateSubnetB:
     Type: AWS::EC2::Subnet
     DependsOn: rCustomerVpcVpn
@@ -80,7 +80,7 @@ Resources:
       # Uses the first AZ available
       AvailabilityZone:
         Fn::Select:
-          - 0
+          - 1
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
@@ -182,13 +182,27 @@ Resources:
           FromPort: 1024
           ToPort: 65535
           IpProtocol: tcp
+  # Database subnet group
+  rRdsDBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupName: testdbsubnetgroup
+      DBSubnetGroupDescription: custom db subnet group
+      SubnetIds:
+        - !Ref rCustomerVpcVpnPrivateSubnetA
+        - !Ref rCustomerVpcVpnPrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-db-subnetgroup"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
 
   # Create an EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
     DependsOn:
       - rEc2InstanceSecurityGroup
-      - rCustomerVpcVpnPrivateSubnet
+      - rCustomerVpcVpnPrivateSubnetA
     Properties:
       InstanceType: t2.micro
       KeyName: ec2KeyPairVpn
@@ -200,10 +214,42 @@ Resources:
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
-          SubnetId: !Ref rCustomerVpcVpnPrivateSubnet
+          SubnetId: !Ref rCustomerVpcVpnPrivateSubnetA
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-customer-vpc-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # RDS mysql instance. Application on Rosa will connect to it.
+  rRdsInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.micro
+      MultiAZ: false
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Engine: mysql
+      EngineVersion: 8.0.33
+      MasterUsername: admin
+      MasterUserPassword: redhat123
+      Port: '3306'
+      DBInstanceIdentifier: rds-mysql
+      AllocatedStorage: '20'
+      DBName: quotesdb
+      StorageEncrypted: false
+      StorageType: standard
+      BackupRetentionPeriod: 1
+      DeleteAutomatedBackups: true
+      DeletionProtection: false
+      DBSubnetGroupName:
+        Ref: rRdsDBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref rSecurityGroupDatabase
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-database-instance"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
