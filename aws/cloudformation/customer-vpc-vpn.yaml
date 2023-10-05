@@ -15,9 +15,16 @@ Parameters:
     Default: 10.3.0.0/16
     Description: Customer VPC CIDR block (10.3.0.0/16 for example).
     Type: String
-  pCustomerVpcVpnPrivateSubnetCidrBlock:
+  pCustomerVpcVpnPrivateSubnetACidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.3.0.0/24
+    Description: >
+      CIDR block for the private subnet in the customer VPC
+      (10.3.0.0/24 for example).
+    Type: String
+  pCustomerVpcVpnPrivateSubnetBCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.1.0/24
     Description: >
       CIDR block for the private subnet in the customer VPC
       (10.3.1.0/24 for example).
@@ -41,14 +48,15 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220
 
-  # Private subnet in the customer VPC
-  rCustomerVpcVpnPrivateSubnet:
+  # Private subnet A in the customer VPC VPN
+  rCustomerVpcVpnPrivateSubnetA:
     Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpcVpn
     Properties:
       VpcId:
         Ref: rCustomerVpcVpn
       CidrBlock:
-        Ref: pCustomerVpcVpnPrivateSubnetCidrBlock
+        Ref: pCustomerVpcVpnPrivateSubnetACidrBlock
       # Uses the first AZ available
       AvailabilityZone:
         Fn::Select:
@@ -56,31 +64,72 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn"]]
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn-a"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
-  # NACL for the private subnet
-  rNetworkAclCustomerVpcVpnPrivateSubnet:
+  # Private subnet B for the RDS
+  rCustomerVpcVpnPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpcVpn
+    Properties:
+      VpcId:
+        Ref: rCustomerVpcVpn
+      CidrBlock:
+        Ref: pCustomerVpcVpnPrivateSubnetBCidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn-b"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
+  # NACL for the private subnet A
+  rNetworkAclCustomerVpcVpnPrivateSubnetA:
     Type: AWS::EC2::NetworkAcl
     Properties:
       VpcId:
         Ref: rCustomerVpcVpn
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-subnet-vpn"]]
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-subnet-vpn-a"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rNetworkAclAssociationCustomerVpcVpnPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
-      - rCustomerVpcVpnPrivateSubnet
-      - rNetworkAclCustomerVpcVpnPrivateSubnet
+      - rCustomerVpcVpnPrivateSubnetA
+      - rNetworkAclCustomerVpcVpnPrivateSubnetA
     Properties:
       SubnetId:
-        Ref: rCustomerVpcVpnPrivateSubnet
+        Ref: rCustomerVpcVpnPrivateSubnetA
       NetworkAclId:
-        Ref: rNetworkAclCustomerVpcVpnPrivateSubnet
+        Ref: rNetworkAclCustomerVpcVpnPrivateSubnetA
+  # NACL for the private subnet B
+  rNetworkAclCustomerVpcVpnPrivateSubnetB:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        Ref: rCustomerVpcVpn
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-subnet-vpn-b"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  rNetworkAclAssociationCustomerVpcVpnPrivateSubnetB:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn:
+      - rCustomerVpcVpnPrivateSubnetB
+      - rNetworkAclCustomerVpcVpnPrivateSubnetB
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcVpnPrivateSubnetB
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcVpnPrivateSubnetB
 
   # Keypair is stored in AWS Systems Manager at /ec2/keypair/<key-pair-id>
   rKeyPairEc2Vpn:
@@ -108,12 +157,52 @@ Resources:
           ToPort: 22
           IpProtocol: tcp
 
+# Security Group for rds
+  rSecurityGroupDatabase:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpcVpn
+    Properties:
+      GroupDescription: Enable mysql connectivity to Rosa cluster
+      GroupName: Database Security Group
+      VpcId: !Ref rCustomerVpcVpn
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-database-sg"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::ImportValue: RosaVpcCidr
+          FromPort: 3306
+          ToPort: 3306
+          IpProtocol: tcp
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::ImportValue: RosaVpcCidr
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: tcp
+  # Database subnet group
+  rRdsDBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupName: testdbsubnetgroup
+      DBSubnetGroupDescription: custom db subnet group
+      SubnetIds:
+        - !Ref rCustomerVpcVpnPrivateSubnetA
+        - !Ref rCustomerVpcVpnPrivateSubnetB
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-db-subnetgroup"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+
   # Create an EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
     DependsOn:
       - rEc2InstanceSecurityGroup
-      - rCustomerVpcVpnPrivateSubnet
+      - rCustomerVpcVpnPrivateSubnetA
     Properties:
       InstanceType: t2.micro
       KeyName: ec2KeyPairVpn
@@ -125,10 +214,42 @@ Resources:
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
-          SubnetId: !Ref rCustomerVpcVpnPrivateSubnet
+          SubnetId: !Ref rCustomerVpcVpnPrivateSubnetA
       Tags:
         - Key: Name
           Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-customer-vpc-vpn"]]
+        - Key: "redhattraining:course-sku"
+          Value: CS220
+  # RDS mysql instance. Application on Rosa will connect to it.
+  rRdsInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: db.t3.micro
+      MultiAZ: false
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Engine: mysql
+      EngineVersion: 8.0.33
+      MasterUsername: admin
+      MasterUserPassword: redhat123
+      Port: '3306'
+      DBInstanceIdentifier: rds-mysql
+      AllocatedStorage: '20'
+      DBName: quotesdb
+      StorageEncrypted: false
+      StorageType: standard
+      BackupRetentionPeriod: 1
+      DeleteAutomatedBackups: true
+      DeletionProtection: false
+      DBSubnetGroupName:
+        Ref: rRdsDBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref rSecurityGroupDatabase
+      Tags:
+        - Key: Name
+          Value: !Join ["", [!Ref pTagprefix, "-database-instance"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
