@@ -1,15 +1,16 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates a new Customer VPC to used
-  on the VPN exercise, and also creates an Instance
-  on the private subnet for testing purposes.
+  This template creates a new Customer VPC used for the VPN exercise.
+  The template also creates an EC2 instance on the private subnet for testing
+  purposes, and an RDS MySQL instance.
 
 Parameters:
-  pTagprefix:
-    Description: Use the course code to prepend resource tags
+  RosaStackName:
+    Description: >
+      Name of the stack that deployed the AWS infrastructure
+      for the ROSA cluster.
     Type: String
-    Default: cs220-cluster
   pCustomerVpcVpnCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.3.0.0/16
@@ -30,8 +31,8 @@ Parameters:
       (10.3.1.0/24 for example).
     Type: String
   pAmiId:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 
 Resources:
   # Customer VPC for the VPN exercise
@@ -44,7 +45,12 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-customer-vpc-vpn"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-vpc-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -64,7 +70,12 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn-a"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-private-subnet-vpn-a"
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -84,7 +95,12 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-customer-private-subnet-vpn-b"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-private-subnet-vpn-b"
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -96,7 +112,12 @@ Resources:
         Ref: rCustomerVpcVpn
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-subnet-vpn-a"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-nacl-customer-subnet-vpn-a"
         - Key: "redhattraining:course-sku"
           Value: CS220
   rNetworkAclAssociationCustomerVpcVpnPrivateSubnet:
@@ -117,7 +138,12 @@ Resources:
         Ref: rCustomerVpcVpn
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-nacl-customer-subnet-vpn-b"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-nacl-customer-subnet-vpn-b"
         - Key: "redhattraining:course-sku"
           Value: CS220
   rNetworkAclAssociationCustomerVpcVpnPrivateSubnetB:
@@ -138,7 +164,12 @@ Resources:
       KeyName: ec2KeyPairVpn
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-ec2-keypair-customer-vpc-vpn"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ec2-keypair-customer-vpc-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -150,14 +181,19 @@ Resources:
       VpcId: !Ref rCustomerVpcVpn
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-vpn-sg"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ec2-instance-vpn-sg"
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 22
           ToPort: 22
           IpProtocol: tcp
 
-# Security Group for rds
+  # Security Group for rds
   rSecurityGroupDatabase:
     Type: AWS::EC2::SecurityGroup
     DependsOn: rCustomerVpcVpn
@@ -167,24 +203,29 @@ Resources:
       VpcId: !Ref rCustomerVpcVpn
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-database-sg"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-database-sg"
         - Key: "redhattraining:course-sku"
           Value: CS220
       SecurityGroupIngress:
         - CidrIp:
-            Fn::ImportValue: RosaVpcCidr
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
           FromPort: 3306
           ToPort: 3306
           IpProtocol: tcp
       SecurityGroupEgress:
         - CidrIp:
-            Fn::ImportValue: RosaVpcCidr
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
           FromPort: 1024
           ToPort: 65535
           IpProtocol: tcp
   # Database subnet group
   rRdsDBSubnetGroup:
-    Type: 'AWS::RDS::DBSubnetGroup'
+    Type: "AWS::RDS::DBSubnetGroup"
     Properties:
       DBSubnetGroupName: testdbsubnetgroup
       DBSubnetGroupDescription: custom db subnet group
@@ -193,7 +234,12 @@ Resources:
         - !Ref rCustomerVpcVpnPrivateSubnetB
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-db-subnetgroup"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-db-subnetgroup"
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -208,8 +254,7 @@ Resources:
       KeyName: ec2KeyPairVpn
       ImageId: !Ref pAmiId
       NetworkInterfaces:
-        -
-          GroupSet:
+        - GroupSet:
             - !Ref rEc2InstanceSecurityGroup
           AssociatePublicIpAddress: false
           DeviceIndex: 0
@@ -217,12 +262,17 @@ Resources:
           SubnetId: !Ref rCustomerVpcVpnPrivateSubnetA
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-ec2-instance-customer-vpc-vpn"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ec2-instance-customer-vpc-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220
   # RDS mysql instance. Application on Rosa will connect to it.
   rRdsInstance:
-    Type: 'AWS::RDS::DBInstance'
+    Type: "AWS::RDS::DBInstance"
     Properties:
       DBInstanceClass: db.t3.micro
       MultiAZ: false
@@ -234,9 +284,9 @@ Resources:
       EngineVersion: 8.0.33
       MasterUsername: admin
       MasterUserPassword: redhat123
-      Port: '3306'
+      Port: "3306"
       DBInstanceIdentifier: rds-mysql
-      AllocatedStorage: '20'
+      AllocatedStorage: "20"
       DBName: quotesdb
       StorageEncrypted: false
       StorageType: standard
@@ -249,7 +299,12 @@ Resources:
         - !Ref rSecurityGroupDatabase
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pTagprefix, "-database-instance"]]
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-database-instance"
         - Key: "redhattraining:course-sku"
           Value: CS220
 
