@@ -161,7 +161,12 @@ Resources:
   rKeyPairEc2Vpn:
     Type: AWS::EC2::KeyPair
     Properties:
-      KeyName: ec2KeyPairVpn
+      KeyName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ec2KeyPairVpn"
       Tags:
         - Key: Name
           Value:
@@ -251,7 +256,12 @@ Resources:
       - rCustomerVpcVpnPrivateSubnetA
     Properties:
       InstanceType: t2.micro
-      KeyName: ec2KeyPairVpn
+      KeyName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ec2KeyPairVpn"
       ImageId: !Ref pAmiId
       NetworkInterfaces:
         - GroupSet:
