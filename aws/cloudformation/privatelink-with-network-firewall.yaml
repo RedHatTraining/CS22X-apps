@@ -2,14 +2,13 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   This template creates the AWS PrivateLink networking infrastructure resources
-  required to support a private Red Hat OpenShift on AWS (ROSA) cluster.
+  required to support a PrivateLink Red Hat OpenShift on AWS (ROSA) cluster.
 
 Parameters:
-  pRosaClusterName:
+  RosaClusterName:
     MinLength: 4
     MaxLength: 15
     AllowedPattern: "[a-z][-a-z0-9]*[a-z0-9]"
-    Default: cs220-cluster
     Description: >
       Name of the ROSA cluster that you will create.
       That parameter is used to tag the AWS resources that this template
@@ -20,7 +19,6 @@ Parameters:
       character.
     Type: String
   pNumberOfAZs:
-    Type: Number
     AllowedValues:
       - 1
       - 3
@@ -28,6 +26,7 @@ Parameters:
     Description: >
       Number of Availability Zones (AZ).
       The number of Availability Zones for a Multi-AZ ROSA cluster must be 3.
+    Type: Number
   pRosaVpcCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.1.0.0/16
@@ -102,7 +101,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-private-vpc"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   # Default Network ACLs (see https://access.redhat.com/documentation/en-us/
@@ -192,7 +191,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-subnet-a"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-private-vpc-subnet-a"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rRosaVpcSubnetB:
@@ -210,7 +209,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-subnet-b"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-private-vpc-subnet-b"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rRosaVpcSubnetC:
@@ -228,7 +227,7 @@ Resources:
           - Fn::GetAZs: ""
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-subnet-c"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-private-vpc-subnet-c"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -242,7 +241,7 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-vpc"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-vpc"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   # Private subnet in the egress VPC
@@ -255,7 +254,7 @@ Resources:
         Ref: pEgressVpcPrivateSubnetCidrBlock
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-private-subnet"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-private-subnet"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   # Firewall subnet in the egress VPC
@@ -268,7 +267,7 @@ Resources:
         Ref: pEgressVpcFirewallSubnetCidrBlock
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-firewall-subnet"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-firewall-subnet"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   # Public subnet in the egress VPC
@@ -281,7 +280,7 @@ Resources:
         Ref: pEgressVpcPublicSubnetACidrBlock
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-subnet"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-public-subnet"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   # Internet gateway
@@ -290,7 +289,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-igw"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-igw"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rInternetGatewayEgressAttachment:
@@ -307,7 +306,7 @@ Resources:
       Domain: vpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-nat-eip"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-public-nat-eip"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rNATGateway:
@@ -321,7 +320,7 @@ Resources:
         Ref: rEgressVpcPublicSubnet
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-nat"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-public-nat"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -329,7 +328,7 @@ Resources:
   rEgressFirewall:
     Type: AWS::NetworkFirewall::Firewall
     Properties:
-      FirewallName: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
+      FirewallName: !Join ["", [!Ref RosaClusterName, "-network-firewall"]]
       VpcId: !Ref rEgressVpc
       SubnetMappings:
         - SubnetId: !Ref rEgressVpcFirewallSubnet
@@ -338,7 +337,7 @@ Resources:
       SubnetChangeProtection: false
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-network-firewall"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-network-firewall"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
       Description: Network Firewall for Egress VPC
@@ -347,8 +346,7 @@ Resources:
   rEgressFirewallPolicy:
     Type: AWS::NetworkFirewall::FirewallPolicy
     Properties:
-      FirewallPolicyName:
-        !Join ["", [!Ref pRosaClusterName, "-firewall-policy"]]
+      FirewallPolicyName: !Join ["", [!Ref RosaClusterName, "-firewall-policy"]]
       FirewallPolicy:
         StatelessDefaultActions:
           - "aws:forward_to_sfe"
@@ -364,7 +362,7 @@ Resources:
       Description: Stateful rule group for Network Firewall
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-network-firewall-policy"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-network-firewall-policy"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -372,12 +370,11 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName:
-        !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
+      RuleGroupName: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group1"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group1"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group1"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
       RuleGroup:
@@ -432,12 +429,11 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: "100"
-      RuleGroupName:
-        !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group2"]]
+      RuleGroupName: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group2"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group2"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group2"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
       Description: "Allow log forwarding to splunkcloud"
@@ -459,12 +455,11 @@ Resources:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
       Capacity: 50
-      RuleGroupName:
-        !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group3"]]
+      RuleGroupName: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group3"]]
       Type: "STATEFUL"
       Tags:
         - Key: "Name"
-          Value: !Join ["", [!Ref pRosaClusterName, "-firewall-rule-group3"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group3"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
       Description: "Allow access to sftp.access.redhat.com"
@@ -504,7 +499,7 @@ Resources:
       DefaultRouteTablePropagation: enable
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-tgw"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-tgw"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rRosaTransitGatewayAttachment:
@@ -520,7 +515,7 @@ Resources:
         Ref: rRosaVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-private-attachment"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-tgw-private-attachment"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rEgressTransitGatewayAttachment:
@@ -534,7 +529,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-egress-attachment"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-tgw-egress-attachment"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
 
@@ -546,7 +541,7 @@ Resources:
         Ref: rTransitGateway
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-egress-rt"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-tgw-egress-rt"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rEgressTransitGatewayRouteTableAssociation:
@@ -572,7 +567,7 @@ Resources:
         Ref: rTransitGateway
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-tgw-rosa-rt"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-tgw-rosa-rt"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rRosaTransitGatewayRouteTableAssociation:
@@ -610,7 +605,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-vpc-tgw-rt"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-vpc-tgw-rt"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rEgressVPCTGWRouteTableAssociation:
@@ -643,7 +638,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-firewall-rt"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-firewall-rt"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rEgressVPCFirewallRouteTableAssociation:
@@ -686,7 +681,7 @@ Resources:
         Ref: rEgressVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-egress-public-rt"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-egress-public-rt"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rEgressPublicSubnetARouteTableAssociation:
@@ -730,7 +725,7 @@ Resources:
         Ref: rRosaVpc
       Tags:
         - Key: Name
-          Value: !Join ["", [!Ref pRosaClusterName, "-private-vpc-rt"]]
+          Value: !Join ["", [!Ref RosaClusterName, "-private-vpc-rt"]]
         - Key: "redhattraining:course-sku"
           Value: CS220
   rRosaVpcSubnetARouteTableAssociation:
@@ -780,7 +775,7 @@ Outputs:
       Name of the ROSA cluster to create. Use that name for the --cluster-name
       option of the "rosa create cluster" command.
     Value:
-      Ref: pRosaClusterName
+      Ref: RosaClusterName
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", RosaClusterName]]
   oRosaVpc:
@@ -795,7 +790,7 @@ Outputs:
       option of the "rosa create cluster" command.
     Value: !GetAtt rRosaVpc.CidrBlock
     Export:
-      Name: RosaVpcCidr
+      Name: !Join [":", [!Ref "AWS::StackName", RosaVpcCidr]]
   oRosaVpcSubnetA:
     Description: >
       Private subnet in the ROSA private VPC. Use that ID for the --subnet-ids
@@ -883,14 +878,10 @@ Outputs:
     Description: Transit gateway that connects the two VPCs
     Value:
       Ref: rTransitGateway
-    Export:
-      Name: TransitGateway
   oPrivateTransitGatewayAttachment:
     Description: Transit gateway attachment to the ROSA private VPC
     Value:
       Ref: rRosaTransitGatewayAttachment
-    Export:
-      Name: RosaTransitGatewayAttachment
   oEgressTransitGatewayAttachment:
     Description: Transit gateway attachment to the Egress VPC
     Value:
@@ -907,8 +898,6 @@ Outputs:
     Description: Transit gateway route table for the ROSA private VPC
     Value:
       Ref: rTransitGatewayRosaRouteTable
-    Export:
-      Name: TransitGatewayRosaRouteTable
   oEgressTransitGatewayRoute1:
     Description: Transit gateway route to the internet (0.0.0.0/0)
     Value:
