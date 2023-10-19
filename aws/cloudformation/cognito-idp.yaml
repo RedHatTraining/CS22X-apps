@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates an AWS Cognito resources for the guided exercise.
+
+Parameters:
+
+
+Resources:
+# Cognito user-pool
+rCognitoUserPool:
+  Type: AWS::Cognito::UserPool
+  Properties:
+    UserPoolName:
+    AutoVerifiedAttributes:
+      - mail
+    AdminCreateUserConfig:
+      AllowAdminCreateUserOnly: true
+# Create user-pool Domain
+rCognitoUserPoolDomain:
+  Type: AWS::Cognito::UserPoolDomain
+  Properties:
+    Domain:
+    UserPoolId: !Ref $UserPoolId
+# Create users for Cognito
+rCognitoUserPoolUsers:
+  Type: AWS::Cognito::UserPoolUser
+  Properties:
+  
+
