@@ -1,9 +1,19 @@
+---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   This template creates an AWS Cognito resources for the guided exercise.
 
 Parameters:
-
+  RosaStackName:
+    Description: >
+      Name of the stack that deployed the AWS Cognito Resources
+  pCognitoUserPoolUserAmelia:
+    Username: amroy
+    UserAttributes:
+      name: Amelia Roy
+      email: amroy@cs220cluster
+      email_verified: true
+    Type: String
 
 Resources:
 # Cognito user-pool
@@ -18,12 +28,16 @@ rCognitoUserPool:
 # Create user-pool Domain
 rCognitoUserPoolDomain:
   Type: AWS::Cognito::UserPoolDomain
+  DependsOn: rCognitoUserPool
   Properties:
     Domain:
-    UserPoolId: !Ref $UserPoolId
+    UserPoolId:
+      Ref: rCognitoUserPool
 # Create users for Cognito
-rCognitoUserPoolUsers:
+rCognitoUserPoolUserAmelia:
+  DependsOn: rCognitoUserPool
   Type: AWS::Cognito::UserPoolUser
   Properties:
-  
-
+    Ref: pCognitoUserPoolUserAmelia
+    UserPoolId:
+      Ref: rCognitoUserPool
