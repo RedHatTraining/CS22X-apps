@@ -36,8 +36,8 @@ Resources:
         Ref: rCognitoUserPool
   # Create users for Cognito
   rCognitoUserPoolUserAmelia:
-    DependsOn: rCognitoUserPool
     Type: AWS::Cognito::UserPoolUser
+    DependsOn: rCognitoUserPool
     Properties:
       Username: amroy
       UserAttributes:
@@ -47,5 +47,60 @@ Resources:
           Value: amroy@cs220cluster
         - Name: email_verified
           Value: true
+      UserPoolId:
+        Ref: rCognitoUserPool
+  rCognitoUserPoolUserSue:
+    Type: AWS::Cognito::UserPoolUser
+    DependsOn: rCognitoUserPool
+    Properties:
+      Username: smoody
+      UserAttributes:
+        - Name: name
+          Value: Sue Moody
+        - Name: email
+          Value: smoody@cs220cluster
+        - Name: email_verified
+          Value: true
+      UserPoolId:
+        Ref: rCognitoUserPool
+  rCognitoUserPoolUserRoberto:
+    Type: AWS::Cognito::UserPoolUser
+    DependsOn: rCognitoUserPool
+    Properties:
+      Username: rruiz
+      UserAttributes:
+        - Name: name
+          Value: Roberto Ruiz
+        - Name: email
+          Value: rruiz@cs220cluster
+        - Name: email_verified
+          Value: true
+      UserPoolId:
+        Ref: rCognitoUserPool
+  rCongnitoUserPoolGroupManagers:
+    Type: AWS::Cognito::UserPoolGroup
+    DependsOn: rCognitoUserPool
+    Properties:
+      GroupName: managers
+      Description: >
+        Group for Managers
+      UserPoolId:
+        Ref: rCognitoUserPool
+  rCongnitoUserPoolGroupDevelopers:
+    Type: AWS::Cognito::UserPoolGroup
+    DependsOn: rCognitoUserPool
+    Properties:
+      GroupName: developers
+      Description: >
+        Group for Developers
+      UserPoolId:
+        Ref: rCognitoUserPool
+  rCongnitoUserPoolGroupOperations:
+    Type: AWS::Cognito::UserPoolGroup
+    DependsOn: rCognitoUserPool
+    Properties:
+      GroupName: operations
+      Description: >
+        Group for Operations
       UserPoolId:
         Ref: rCognitoUserPool
