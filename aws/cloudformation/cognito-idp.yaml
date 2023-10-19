@@ -104,3 +104,13 @@ Resources:
         Group for Operations
       UserPoolId:
         Ref: rCognitoUserPool
+  rCognitoUserToGroupManagers:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    DependsOn:
+      - rCognitoUserPool
+      - rCongnitoUserPoolGroupManagers
+    Properties:
+      GroupName: managers
+      Username: amroy
+      UserPoolId:
+        Ref: rCognitoUserPool
