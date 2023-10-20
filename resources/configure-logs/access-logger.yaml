@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: access-logger
+  name: access-logger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: access-logger
+  template:
+    metadata:
+      labels:
+        app: access-logger
+    spec:
+      containers:
+        - name: access-logger
+          image: quay.io/redhattraining/access-logger:v0.1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault

@@ -1,0 +1,17 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "<CHANGE_ME>"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "<CHANGE_ME>:sub": "system:serviceaccount:openshift-logging:logcollector"
+                }
+            }
+        }
+    ]
+}
