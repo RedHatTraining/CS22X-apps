@@ -8,13 +8,11 @@ Parameters:
     Description: >
       Name of the stack that deployed the AWS Cognito Resources
     Type: String
-  # pCognitoUserPoolUserAmelia:
-  #   Username: amroy
-  #   UserAttributes:
-  #     name: Amelia Roy
-  #     email: amroy@cs220cluster
-  #     email_verified: true
-  #   Type: String
+  pClusterDomain:
+    Description: |
+      Name of the CS220 cluster domain.
+      You must get this parameter by using the following command:
+    Type: String
 
 Resources:
   # Cognito user-pool
@@ -114,3 +112,30 @@ Resources:
       Username: amroy
       UserPoolId:
         Ref: rCognitoUserPool
+  # Cognit user pool client
+  rCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DependsOn:
+      - rCognitoUserPool
+    Properties:
+      UserPoolId:
+        Ref: rCognitoUserPool
+      ClientName: cs220-user-pool-client
+      GenerateSecret: true
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - Fn::Join:
+            - ""
+            - - "https://oauth-openshift.apps."
+              - !Ref pClusterDomain
+              - "/oauth2callback/Cognito"
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - phone
+        - email
+        - openid
+        - profile
+        - aws.cognito.signin.user.admin
+      AllowedOAuthFlows:
+        - code
