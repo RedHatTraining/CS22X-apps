@@ -33,6 +33,16 @@ Parameters:
   pAmiId:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+  pVpnClientCertARN:
+    Description: >
+      ARN for the Client certificate previously stored it
+      on the AWS certificate manager.
+    Type: String
+  pVpnServerCertARN:
+    Description: >
+      ARN for the Client certificate previously stored it
+      on the AWS certificate manager.
+    Type: String
 
 Resources:
   # Customer VPC for the VPN exercise
