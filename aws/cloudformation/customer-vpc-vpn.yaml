@@ -64,7 +64,7 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
   # Customer VPC private subnet route table
-  rCustomerVpcPrivateRouteTable:
+  rCustomerVpcVpnPrivateRouteTable:
     Type: AWS::EC2::RouteTable
     DependsOn: rCustomerVpcVpn
     Properties:
@@ -80,6 +80,16 @@ Resources:
                 - "-customer-private-vpn-rt"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
+  rCustomerVpcVpnPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - rCustomerVpcVpnPrivateSubnetA
+      - rCustomerVpcVpnPrivateRouteTable
+    Properties:
+      SubnetId:
+        Ref: rCustomerVpcVpnPrivateSubnetA
+      RouteTableId:
+        Ref: rCustomerVpcVpnPrivateRouteTable
 
   # Private subnet A in the customer VPC VPN
   rCustomerVpcVpnPrivateSubnetA:
