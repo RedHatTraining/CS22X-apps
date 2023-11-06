@@ -281,7 +281,7 @@ Resources:
   rRdsDBSubnetGroup:
     Type: "AWS::RDS::DBSubnetGroup"
     Properties:
-      DBSubnetGroupName: testdbsubnetgroup
+      DBSubnetGroupName: testdbsubnetgroupVpn
       DBSubnetGroupDescription: custom db subnet group
       SubnetIds:
         - !Ref rCustomerVpcVpnPrivateSubnetA
