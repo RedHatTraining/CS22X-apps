@@ -63,6 +63,23 @@ Resources:
                 - "-customer-vpc-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
+  # Customer VPC private subnet route table
+  rCustomerVpcPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: rCustomerVpcVpn
+    Properties:
+      VpcId:
+        Ref: rCustomerVpcVpn
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-private-vpn-rt"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-vpn
 
   # Private subnet A in the customer VPC VPN
   rCustomerVpcVpnPrivateSubnetA:
