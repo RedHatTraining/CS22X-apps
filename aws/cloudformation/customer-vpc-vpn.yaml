@@ -6,6 +6,11 @@ Description: >
   purposes, and an RDS MySQL instance.
 
 Parameters:
+  CustomerStackName:
+    Description: >
+      Name of the stack that deployed the Customer VPC
+      for the bastion GE
+    Type: String
   RosaStackName:
     Description: >
       Name of the stack that deployed the AWS infrastructure
@@ -251,11 +256,11 @@ Resources:
   # Create an EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
-    DependsOn:
-      - Fn::ImportValue:
-          !Join [":", [!Ref RosaStackName, SecurityGroupBastion]]
-      - Fn::ImportValue:
-          !Join [":", [!Ref RosaStackName, CustomerVPCPrivateSubnetA]]
+    # DependsOn:
+    #   - Fn::ImportValue:
+    #       !Join [":", [!Ref RosaStackName, SecurityGroupBastion]]
+    #   - Fn::ImportValue:
+    #       !Join [":", [!Ref RosaStackName, CustomerVPCPrivateSubnetA]]
     Properties:
       InstanceType: t2.micro
       KeyName:
@@ -268,11 +273,12 @@ Resources:
       NetworkInterfaces:
         - GroupSet:
             - Fn::ImportValue:
-                !Join [":", [!Ref RosaStackName, SecurityGroupBastion]]
+                !Join ["-", [!Ref CustomerStackName, SecurityGroupBastion]]
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
-          SubnetId: !Join [":", [!Ref RosaStackName, CustomerVPCPrivateSubnetA]]
+          SubnetId:
+            !Join ["-", [!Ref CustomerStackName, CustomerVPCPrivateSubnetA]]
       Tags:
         - Key: Name
           Value:
