@@ -275,7 +275,7 @@ Resources:
           IpProtocol: tcp
 
   # Security Group for rds
-  rSecurityGroupDatabase:
+  rSecurityGroupDatabaseVpn:
     Type: AWS::EC2::SecurityGroup
     DependsOn: rCustomerVpcVpn
     Properties:
@@ -289,7 +289,7 @@ Resources:
               - ""
               - - Fn::ImportValue:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
-                - "-database-sg"
+                - "-database-vpn-sg"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
       SecurityGroupIngress:
@@ -305,7 +305,7 @@ Resources:
           ToPort: 65535
           IpProtocol: tcp
   # Database subnet group
-  rRdsDBSubnetGroup:
+  rRdsDBSubnetGroupVpn:
     Type: "AWS::RDS::DBSubnetGroup"
     Properties:
       DBSubnetGroupName: testdbsubnetgroupVpn
@@ -320,7 +320,7 @@ Resources:
               - ""
               - - Fn::ImportValue:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
-                - "-db-subnetgroup"
+                - "-db-vpn-subnetgroup"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
 
@@ -357,7 +357,7 @@ Resources:
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
   # RDS mysql instance. Application on Rosa will connect to it.
-  rRdsInstance:
+  rRdsInstanceVpn:
     Type: "AWS::RDS::DBInstance"
     Properties:
       DBInstanceClass: db.t3.micro
@@ -380,9 +380,9 @@ Resources:
       DeleteAutomatedBackups: true
       DeletionProtection: false
       DBSubnetGroupName:
-        Ref: rRdsDBSubnetGroup
+        Ref: rRdsDBSubnetGroupVpn
       VPCSecurityGroups:
-        - !Ref rSecurityGroupDatabase
+        - !Ref rSecurityGroupDatabaseVpn
       Tags:
         - Key: Name
           Value:
@@ -390,7 +390,7 @@ Resources:
               - ""
               - - Fn::ImportValue:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
-                - "-database-instance"
+                - "-database-instance-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
 
