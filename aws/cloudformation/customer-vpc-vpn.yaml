@@ -344,7 +344,7 @@ Resources:
       MasterUsername: admin
       MasterUserPassword: redhat123
       Port: "3306"
-      DBInstanceIdentifier: rds-mysql
+      DBInstanceIdentifier: rds-mysql-vpn
       AllocatedStorage: "20"
       DBName: quotesdb
       StorageEncrypted: false
