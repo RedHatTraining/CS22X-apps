@@ -35,13 +35,13 @@ Parameters:
     Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
   pVpnClientCertARN:
     Description: >
-      ARN for the Client certificate previously stored it
-      on the AWS certificate manager.
+      Identifier for the Client certificate stored in
+      the AWS certificate manager.
     Type: String
   pVpnServerCertARN:
     Description: >
-      ARN for the Client certificate previously stored it
-      on the AWS certificate manager.
+      Identifier for the Server certificate stored in
+      the AWS certificate manager.
     Type: String
 
 Resources:
