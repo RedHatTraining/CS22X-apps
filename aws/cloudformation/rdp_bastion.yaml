@@ -497,6 +497,26 @@ Resources:
       GatewayId:
         Ref: rInternetGateway
 
+  # EC2 instance connect endpoint
+  rCustomerInstanceConnectEndpoint:
+    Type: AWS::EC2::InstanceConnectEndpoint
+    DependsOn:
+      - rSecurityGroupBastion
+      - rCustomerVpcPrivateSubnetA
+    Properties:
+      SecurityGroupIds:
+        - !Ref rSecurityGroupBastion
+      SubnetId: !Ref rCustomerVpcPrivateSubnetA
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-bastion-connect-endpoint"
+        - Key: "redhattraining:course-sku"
+          Value: CS220
   # Security Group for bastion
   rSecurityGroupBastion:
     Type: AWS::EC2::SecurityGroup
