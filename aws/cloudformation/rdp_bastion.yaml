@@ -545,7 +545,7 @@ Resources:
                 - "-bastion-connect-endpoint"
         - Key: "redhattraining:course-sku"
           Value: CS220-bastion
-  
+
   # Bastion EC2 instance
   rBastionHost:
     Type: AWS::EC2::Instance
@@ -566,21 +566,23 @@ Resources:
           DeleteOnTermination: true
           SubnetId: !Ref rCustomerVpcPrivateSubnetA
       UserData:
+# To avoid yamllint to show errors
+# yamllint disable
         Fn::Base64: !Sub |
-        #!/bin/bash -xe
-        exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-        # Download and install oc command
-        curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.13/openshift-client-linux.tar.gz -o $HOME/openshift-client-linux.tar.gz
-        tar -xzvf $HOME/openshift-client-linux.tar.gz -C /usr/local/sbin/ oc kubectl
-        # Download and install rosa command
-        curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/latest/rosa-linux.tar.gz -o $HOME/rosa-linux.tar.gz
-        tar -xzvf  $HOME/rosa-linux.tar.gz -C /usr/local/bin/ rosa
-        # Download and install aws cli
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && ./aws/install
-        # Change password to the default for the exercise
-        echo "redhat123" | passwd ec2-user --stdin
-        # Update all the packages and reboot the system
-        yum update -y && reboot
+          #!/bin/bash -xe
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          # Download and install oc command
+          curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable-4.13/openshift-client-linux.tar.gz -o $HOME/openshift-client-linux.tar.gz
+          tar -xzvf $HOME/openshift-client-linux.tar.gz -C /usr/local/sbin/ oc kubectl
+          # Download and install rosa command
+          curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/latest/rosa-linux.tar.gz -o $HOME/rosa-linux.tar.gz
+          tar -xzvf  $HOME/rosa-linux.tar.gz -C /usr/local/bin/ rosa
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && ./aws/install
+          # Change password to the default for the exercise
+          echo "redhat123" | passwd ec2-user --stdin
+          # Update all the packages and reboot the system
+          yum update -y && reboot
+# yamllint enable
       Tags:
         - Key: Name
           Value:
