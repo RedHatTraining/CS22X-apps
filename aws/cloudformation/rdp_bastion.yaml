@@ -108,7 +108,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-vpc-bastion"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion-bastion
   # Modify default vpc nacl to deny all inbound
   rInboundNetworkACLRule1:
     Type: AWS::EC2::NetworkAclEntry
@@ -145,7 +145,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-a"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   # Private subnet in second AZ. Used later to create db subnetgroup
   rCustomerVpcPrivateSubnetB:
     Type: AWS::EC2::Subnet
@@ -169,7 +169,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-b"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
 
   # New nacl for private subnet
   rNetworkAclCustomerVpcPrivateSubnet:
@@ -186,7 +186,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-nacl-customer-private-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   rNetworkAclAssociationCustomerVpcPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -307,7 +307,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   # New nacl for public subnet
   rNetworkAclCustomerVpcPublicSubnet:
     Type: AWS::EC2::NetworkAcl
@@ -323,7 +323,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-nacl-customer-public-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   rNetworkAclAssociationCustomerVpcPublicSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -375,7 +375,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-igw"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   rInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     DependsOn: rCustomerVpc
@@ -399,7 +399,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-nat-eip"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   rNATGateway:
     Type: AWS::EC2::NatGateway
     DependsOn: rElasticIP
@@ -419,7 +419,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-nat"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
 
   # Customer VPC private subnet route table
   rCustomerVpcPrivateRouteTable:
@@ -437,7 +437,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   rCustomerVpcPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -475,7 +475,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
   rCustomerPublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -497,6 +497,34 @@ Resources:
       GatewayId:
         Ref: rInternetGateway
 
+  # Security Group for bastion
+  rSecurityGroupBastion:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpc
+    Properties:
+      GroupDescription: Enable SSH and RDP access
+      GroupName: Bastion Host Security Group
+      VpcId: !Ref rCustomerVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-bastion-sg"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-bastion
+      SecurityGroupIngress:
+        - CidrIp: !Ref pSshLocation
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+        - CidrIp: !Ref pRdpLocation
+          FromPort: 3389
+          ToPort: 3389
+          IpProtocol: tcp
+
   # EC2 instance connect endpoint
   rCustomerInstanceConnectEndpoint:
     Type: AWS::EC2::InstanceConnectEndpoint
@@ -516,35 +544,8 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-bastion-connect-endpoint"
         - Key: "redhattraining:course-sku"
-          Value: CS220
-  # Security Group for bastion
-  rSecurityGroupBastion:
-    Type: AWS::EC2::SecurityGroup
-    DependsOn: rCustomerVpc
-    Properties:
-      GroupDescription: Enable SSH and RDP access
-      GroupName: Bastion Host Security Group
-      VpcId: !Ref rCustomerVpc
-      Tags:
-        - Key: Name
-          Value:
-            Fn::Join:
-              - ""
-              - - Fn::ImportValue:
-                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
-                - "-bastion-sg"
-        - Key: "redhattraining:course-sku"
-          Value: CS220
-      SecurityGroupIngress:
-        - CidrIp: !Ref pSshLocation
-          FromPort: 22
-          ToPort: 22
-          IpProtocol: tcp
-        - CidrIp: !Ref pRdpLocation
-          FromPort: 3389
-          ToPort: 3389
-          IpProtocol: tcp
-
+          Value: CS220-bastion
+  
   # Bastion EC2 instance
   rBastionHost:
     Type: AWS::EC2::Instance
@@ -589,7 +590,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-bastion-instance"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
 
   # Security Group for rds
   rSecurityGroupDatabase:
@@ -608,7 +609,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-database-sg"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
       SecurityGroupIngress:
         - CidrIp:
             Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
@@ -640,7 +641,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-db-subnetgroup"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
 
   # RDS mysql instance. Application on Rosa will connect to it.
   rRdsInstance:
@@ -678,7 +679,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-database-instance"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-bastion
 
 Outputs:
   oBastionHost:
