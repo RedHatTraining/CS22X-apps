@@ -278,7 +278,8 @@ Resources:
           DeviceIndex: 0
           DeleteOnTermination: true
           SubnetId:
-            !Join ["-", [!Ref CustomerStackName, CustomerVPCPrivateSubnetA]]
+            - Fn::ImportValue:
+                !Join ["-", [!Ref CustomerStackName, CustomerVPCPrivateSubnetA]]
       Tags:
         - Key: Name
           Value:
