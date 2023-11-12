@@ -87,9 +87,8 @@ Resources:
       ClientVpnEndpointId:
         Ref: rCustomerClientVpnEndpoint
       SubnetId:
-        Ref:
-          Fn::ImportValue:
-            !Join ["-", [!Ref CustomerStackName, CustomerVPCPrivateSubnetA]]
+        Fn::ImportValue:
+          !Join ["-", [!Ref CustomerStackName, CustomerVPCPrivateSubnetA]]
 
   # Keypair is stored in AWS Systems Manager at /ec2/keypair/<key-pair-id>
   rKeyPairEc2Vpn:
