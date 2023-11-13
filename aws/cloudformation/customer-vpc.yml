@@ -315,16 +315,22 @@ Resources:
   rCustomerVpcTransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
-      Options:
-        Options
       SubnetIds:
-        - String
-      Tags:
-        - Tag
+        - !Ref rCustomerVpcPrivateSubnetA
       TransitGatewayId:
         Fn::ImportValue:
           !Join [":", [!Ref RosaStackName, TransitGateway]]
-      VpcId: String
+      VpcId: !Ref rCustomerVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-twg-customer-vpc-attachment"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-customerVpc
   # # Public subnet in the customer VPC
   # rCustomerVpcPublicSubnet:
   #   Type: AWS::EC2::Subnet
