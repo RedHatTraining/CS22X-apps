@@ -1,10 +1,11 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates a new Customer VPC used for the VPN exercise.
-  The template also creates an EC2 instance on the private subnet for testing
-  purposes, and an RDS MySQL instance.
-
+  This template creates an AWS VPN Client endpoint for the exercise.
+  The template also creates an EC2 instance on the private customer VPC subnet
+  for testing the connectivity between your system and the customer VPC by
+  by using the VPN connection.
+# Parameters Section
 Parameters:
   CustomerStackName:
     Description: >
@@ -16,28 +17,9 @@ Parameters:
       Name of the stack that deployed the AWS infrastructure
       for the ROSA cluster.
     Type: String
-  pCustomerVpcVpnCidrBlock:
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.3.0.0/16
-    Description: Customer VPC CIDR block (10.3.0.0/16 for example).
-    Type: String
-  pCustomerVpcVpnPrivateSubnetACidrBlock:
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.3.0.0/24
-    Description: >
-      CIDR block for the private subnet in the customer VPC
-      (10.3.0.0/24 for example).
-    Type: String
-  pCustomerVpcVpnPrivateSubnetBCidrBlock:
-    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
-    Default: 10.3.1.0/24
-    Description: >
-      CIDR block for the private subnet in the customer VPC
-      (10.3.1.0/24 for example).
-    Type: String
   pAmiId:
     Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
-    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
   pVpnClientCertARN:
     Description: >
       Identifier for the Client certificate stored in
@@ -48,7 +30,7 @@ Parameters:
       Identifier for the Server certificate stored in
       the AWS certificate manager.
     Type: String
-
+# Resources Section
 Resources:
   # Client VPN Endpoint
   rCustomerClientVpnEndpoint:
@@ -89,7 +71,6 @@ Resources:
       SubnetId:
         Fn::ImportValue:
           !Join ["-", [!Ref CustomerStackName, CustomerVPCPrivateSubnetA]]
-
   # Keypair is stored in AWS Systems Manager at /ec2/keypair/<key-pair-id>
   rKeyPairEc2Vpn:
     Type: AWS::EC2::KeyPair
@@ -110,7 +91,6 @@ Resources:
                 - "-ec2-keypair-customer-vpc-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
-
   # Create an EC2 instance
   rEc2InstaceVpn:
     Type: AWS::EC2::Instance
@@ -144,7 +124,6 @@ Resources:
                 - "-ec2-instance-customer-vpc-vpn"
         - Key: "redhattraining:course-sku"
           Value: CS220-vpn
-
 Outputs:
   oStackName:
     Description: Name of the stack
