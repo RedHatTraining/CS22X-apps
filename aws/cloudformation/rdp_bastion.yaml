@@ -108,7 +108,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-vpc-bastion"
         - Key: "redhattraining:course-sku"
-          Value: CS220-bastion-bastion
+          Value: CS220-bastion
   # Modify default vpc nacl to deny all inbound
   rInboundNetworkACLRule1:
     Type: AWS::EC2::NetworkAclEntry
