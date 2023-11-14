@@ -912,6 +912,8 @@ Outputs:
     Description: Transit gateway route table for the ROSA private VPC
     Value:
       Ref: rTransitGatewayRosaRouteTable
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", TransitGatewayRosaRouteTable]]
   oEgressTransitGatewayRoute1:
     Description: Transit gateway route to the internet (0.0.0.0/0)
     Value:
