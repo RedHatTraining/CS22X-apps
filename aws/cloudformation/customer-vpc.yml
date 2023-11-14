@@ -378,7 +378,6 @@ Resources:
   # Traffic between Customer VPC private subnet and ROSA VPC subnet
   rCustomerPrivateToRosaRoute:
     Type: AWS::EC2::Route
-    DependsOn: rCustomerVpcPrivateRouteTable
     Properties:
       RouteTableId:
         Ref: rCustomerVpcPrivateRouteTable
