@@ -375,6 +375,17 @@ Resources:
       TransitGatewayRouteTableId:
         Ref: rTransitGatewayCustomerRouteTable
 
+  # Traffic between Customer VPC private subnet and ROSA VPC subnet
+  rCustomerPrivateToRosaRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rCustomerVpcPrivateRouteTable
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+      DestinationCidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
 
   # # Public subnet in the customer VPC
   # rCustomerVpcPublicSubnet:
