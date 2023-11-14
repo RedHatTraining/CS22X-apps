@@ -896,6 +896,8 @@ Outputs:
     Description: Transit gateway attachment to the ROSA private VPC
     Value:
       Ref: rRosaTransitGatewayAttachment
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", TransitGatewayRosaAttachment]]
   oEgressTransitGatewayAttachment:
     Description: Transit gateway attachment to the Egress VPC
     Value:

@@ -366,6 +366,15 @@ Resources:
       TransitGatewayRouteTableId:
         Fn::ImportValue:
           !Join [":", [!Ref RosaStackName, TransitGatewayRosaRouteTable]]
+  rPropagateRosaVPCRoute:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    Properties:
+      TransitGatewayAttachmentId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, TransitGatewayRosaAttachment]]
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayCustomerRouteTable
+
 
   # # Public subnet in the customer VPC
   # rCustomerVpcPublicSubnet:
