@@ -51,43 +51,6 @@ Parameters:
     Description: The IP address range that can use RDP to the EC2 instance.
     Type: String
 
-Mappings:
-  RegionMap:
-    ap-south-1:
-      ami: ami-061183ad486d5dd8a
-    eu-north-1:
-      ami: ami-03a2ff446d5bf5187
-    eu-west-3:
-      ami: ami-06e90f3404ebc4277
-    eu-west-2:
-      ami: ami-0ef262972e641bb3e
-    eu-west-1:
-      ami: ami-0ac03fb170870f7c7
-    ap-northeast-3:
-      ami: ami-01d7109b399c6b223
-    ap-northeast-2:
-      ami: ami-06b9122710049dfe7
-    ap-northeast-1:
-      ami: ami-0d5142f63c808d143
-    ca-central-1:
-      ami: ami-04609b5b156500b17
-    sa-east-1:
-      ami: ami-0b123273fd25fe833
-    ap-southeast-1:
-      ami: ami-0fcd2e9ac9a168217
-    ap-southeast-2:
-      ami: ami-09fb3a51968a858cd
-    eu-central-1:
-      ami: ami-0087bd2f5c26af5ca
-    us-east-1:
-      ami: ami-005b11f8b84489615
-    us-east-2:
-      ami: ami-08778753ef37aa408
-    us-west-1:
-      ami: ami-0267fc24ee0102728
-    us-west-2:
-      ami: ami-081aaface2871d0d0
-
 Resources:
   # Customer VPC
   rCustomerVpc:
@@ -144,30 +107,30 @@ Resources:
                 - "-customer-private-subnet-a"
         - Key: "redhattraining:course-sku"
           Value: CS220-customerVpc
-  # # Private subnet in second AZ. Used later to create db subnetgroup
-  # rCustomerVpcPrivateSubnetB:
-  #   Type: AWS::EC2::Subnet
-  #   DependsOn: rCustomerVpc
-  #   Properties:
-  #     VpcId:
-  #       Ref: rCustomerVpc
-  #     CidrBlock:
-  #       Ref: pCustomerVpcPrivateSubnetBCidrBlock
-  #     # Uses the second AZ available
-  #     AvailabilityZone:
-  #       Fn::Select:
-  #         - 1
-  #         - Fn::GetAZs: ""
-  #     Tags:
-  #       - Key: Name
-  #         Value:
-  #           Fn::Join:
-  #             - ""
-  #             - - Fn::ImportValue:
-  #                   !Join [":", [!Ref RosaStackName, RosaClusterName]]
-  #               - "-customer-private-subnet-b"
-  #       - Key: "redhattraining:course-sku"
-  #         Value: CS220-customerVpc
+  # Private subnet in second AZ. Used later to create db subnetgroup
+  rCustomerVpcPrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    DependsOn: rCustomerVpc
+    Properties:
+      VpcId:
+        Ref: rCustomerVpc
+      CidrBlock:
+        Ref: pCustomerVpcPrivateSubnetBCidrBlock
+      # Uses the second AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-private-subnet-b"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-RDS
 
   # New nacl for private subnet
   rNetworkAclCustomerVpcPrivateSubnet:
@@ -314,6 +277,9 @@ Resources:
   # Create the Transit Gateway Attachment to connect customer VPC with TGW
   rCustomerVpcTransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
+    DependsOn:
+      - rCustomerVpcPrivateSubnetA
+      - rCustomerVpc
     Properties:
       SubnetIds:
         - !Ref rCustomerVpcPrivateSubnetA
@@ -334,6 +300,7 @@ Resources:
   # Transit gateway route table (customer)
   rTransitGatewayCustomerRouteTable:
     Type: AWS::EC2::TransitGatewayRouteTable
+    DependsOn: rCustomerVpcTransitGatewayAttachment
     Properties:
       TransitGatewayId:
         Fn::ImportValue:
@@ -630,94 +597,94 @@ Resources:
   #       - Key: "redhattraining:course-sku"
   #         Value: CS220-customerVpc
 
-  # # Security Group for rds
-  # rSecurityGroupDatabase:
-  #   Type: AWS::EC2::SecurityGroup
-  #   DependsOn: rCustomerVpc
-  #   Properties:
-  #     GroupDescription: Enable mysql connectivity to Rosa cluster
-  #     GroupName: Database Security Group
-  #     VpcId: !Ref rCustomerVpc
-  #     Tags:
-  #       - Key: Name
-  #         Value:
-  #           Fn::Join:
-  #             - ""
-  #             - - Fn::ImportValue:
-  #                   !Join [":", [!Ref RosaStackName, RosaClusterName]]
-  #               - "-database-sg"
-  #       - Key: "redhattraining:course-sku"
-  #         Value: CS220-customerVpc
-  #     SecurityGroupIngress:
-  #       - CidrIp:
-  #           Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
-  #         FromPort: 3306
-  #         ToPort: 3306
-  #         IpProtocol: tcp
-  #     SecurityGroupEgress:
-  #       - CidrIp:
-  #           Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
-  #         FromPort: 1024
-  #         ToPort: 65535
-  #         IpProtocol: tcp
+  # Security Group for rds
+  rSecurityGroupDatabase:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: rCustomerVpc
+    Properties:
+      GroupDescription: Enable mysql connectivity to Rosa cluster
+      GroupName: Database Security Group
+      VpcId: !Ref rCustomerVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-database-sg"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-RDS
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 3306
+          ToPort: 3306
+          IpProtocol: tcp
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: tcp
 
-  # # Database subnet group
-  # rRdsDBSubnetGroup:
-  #   Type: "AWS::RDS::DBSubnetGroup"
-  #   Properties:
-  #     DBSubnetGroupName: testdbsubnetgroup
-  #     DBSubnetGroupDescription: custom db subnet group
-  #     SubnetIds:
-  #       - !Ref rCustomerVpcPrivateSubnetA
-  #       - !Ref rCustomerVpcPrivateSubnetB
-  #     Tags:
-  #       - Key: Name
-  #         Value:
-  #           Fn::Join:
-  #             - ""
-  #             - - Fn::ImportValue:
-  #                   !Join [":", [!Ref RosaStackName, RosaClusterName]]
-  #               - "-db-subnetgroup"
-  #       - Key: "redhattraining:course-sku"
-  #         Value: CS220-customerVpc
+  # Database subnet group
+  rRdsDBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupName: testdbsubnetgroup
+      DBSubnetGroupDescription: custom db subnet group
+      SubnetIds:
+        - !Ref rCustomerVpcPrivateSubnetA
+        - !Ref rCustomerVpcPrivateSubnetB
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-db-subnetgroup"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-RDS
 
-  # # RDS mysql instance. Application on Rosa will connect to it.
-  # rRdsInstance:
-  #   Type: "AWS::RDS::DBInstance"
-  #   Properties:
-  #     DBInstanceClass: db.t3.micro
-  #     MultiAZ: false
-  #     AvailabilityZone:
-  #       Fn::Select:
-  #         - 0
-  #         - Fn::GetAZs: ""
-  #     Engine: mysql
-  #     EngineVersion: 8.0.33
-  #     MasterUsername: admin
-  #     MasterUserPassword: redhat123
-  #     Port: "3306"
-  #     DBInstanceIdentifier: rds-mysql
-  #     AllocatedStorage: "20"
-  #     DBName: quotesdb
-  #     StorageEncrypted: false
-  #     StorageType: standard
-  #     BackupRetentionPeriod: 1
-  #     DeleteAutomatedBackups: true
-  #     DeletionProtection: false
-  #     DBSubnetGroupName:
-  #       Ref: rRdsDBSubnetGroup
-  #     VPCSecurityGroups:
-  #       - !Ref rSecurityGroupDatabase
-  #     Tags:
-  #       - Key: Name
-  #         Value:
-  #           Fn::Join:
-  #             - ""
-  #             - - Fn::ImportValue:
-  #                   !Join [":", [!Ref RosaStackName, RosaClusterName]]
-  #               - "-database-instance"
-  #       - Key: "redhattraining:course-sku"
-  #         Value: CS220-customerVpc
+  # RDS mysql instance. Application on Rosa will connect to it.
+  rRdsInstance:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: db.t3.micro
+      MultiAZ: false
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Engine: mysql
+      EngineVersion: 8.0.33
+      MasterUsername: admin
+      MasterUserPassword: redhat123
+      Port: "3306"
+      DBInstanceIdentifier: rds-mysql
+      AllocatedStorage: "20"
+      DBName: quotesdb
+      StorageEncrypted: false
+      StorageType: standard
+      BackupRetentionPeriod: 1
+      DeleteAutomatedBackups: true
+      DeletionProtection: false
+      DBSubnetGroupName:
+        Ref: rRdsDBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref rSecurityGroupDatabase
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-database-instance"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-RDS
 
 Outputs:
   oCustomerVPC:
