@@ -10,14 +10,14 @@ data:
   cwagentconfig.json: |
     {
       "agent": {
-        "region": "__cluster_region__",
+        "region": "<CHANGE_ME>",
         "debug": true
       },
       "logs": {
         "metrics_collected": {
           "prometheus": {
-            "cluster_name": "__cluster_name__",
-            "log_group_name": "/aws/containerinsights/__cluster_name__/prometheus",
+            "cluster_name": "<CHANGE_ME>",
+            "log_group_name": "/aws/containerinsights/<CHANGE_ME>/prometheus",
             "prometheus_config_path": "/etc/prometheusconfig/prometheus.yaml",
             "emf_processor": {
               "metric_declaration": [
@@ -122,7 +122,7 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              cpu:  1000m
+              cpu: 1000m
               memory: 1000Mi
             requests:
               cpu: 200m

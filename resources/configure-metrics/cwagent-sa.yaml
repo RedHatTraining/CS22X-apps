@@ -48,3 +48,4 @@ roleRef:
   kind: ClusterRole
   name: cwagent-prometheus-role
   apiGroup: rbac.authorization.k8s.io
+  

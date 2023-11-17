@@ -9,7 +9,7 @@
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
                 "StringEquals": {
-                    "<CHANGE_ME>:sub": "system:serviceaccount:<CHANGE_ME>:<CHANGE_ME>"
+                    "<CHANGE_ME>:sub": "system:serviceaccount:amazon-cloudwatch:cwagent-prometheus"
                 }
             }
         }
