@@ -1,16 +1,15 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates a bastion host based on Mate AMI on a new VPC
-  (customer).
-  This bastion host will be used to connect to the ROSA cluster,
-  run oc commands, and access the OpenShift Web console.
+  This template creates the customer VPC, a bastion host, and an RDS MySQL
+  database.
+  The template connects the VPC to the transit gateway for the course.
 
 Parameters:
   RosaStackName:
     Description: >
-      Name of the stack that deployed the AWS infrastructure
-      for the ROSA cluster.
+      Name of the stack that deployed the AWS infrastructure for the
+      ROSA cluster.
     Type: String
   pCustomerVpcCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
@@ -21,8 +20,8 @@ Parameters:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: 10.2.0.0/24
     Description: >
-      CIDR block for the private subnet in first AZ of the customer VPC
-      (10.2.0.0/24 for example).
+      CIDR block for the private subnet in first Availability Zone (AZ) of the
+      customer VPC (10.2.0.0/24 for example).
     Type: String
   pCustomerVpcPrivateSubnetBCidrBlock:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
@@ -39,56 +38,59 @@ Parameters:
       (10.2.2.0/24 for example).
     Type: String
   pInstanceType:
-    Default: "t3.medium"
-    Description: EC2 instance type.
+    Default: t3.medium
+    Description: Amazon EC2 instance type for the bastion host.
     Type: String
-  pSshLocation:
+  pSshSourceAllowed:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: "0.0.0.0/0"
-    Description: The IP address range that can SSH to the EC2 instance.
+    Description: The IP address range that can SSH to the bastion host.
     Type: String
-  pRdpLocation:
+  pRdpSourceAllowed:
     AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
     Default: "0.0.0.0/0"
-    Description: The IP address range that can use RDP to the EC2 instance.
+    Description: >
+      The IP address range that can use RDP to connect the bastion host.
     Type: String
 
+# See https://octopus.com/blog/ami-mappings-cloudformation for a script that
+# generates the RegionMap mapping from an AMI name (amzn2-x86_64-MATEDE_DOTNET*)
 Mappings:
   RegionMap:
     ap-south-1:
-      ami: ami-061183ad486d5dd8a
+      ami: ami-0e159fc62d940d348
     eu-north-1:
-      ami: ami-03a2ff446d5bf5187
+      ami: ami-078c304ec0afd678a
     eu-west-3:
-      ami: ami-06e90f3404ebc4277
+      ami: ami-01036613f120414f2
     eu-west-2:
-      ami: ami-0ef262972e641bb3e
+      ami: ami-09abb6457c770f890
     eu-west-1:
-      ami: ami-0ac03fb170870f7c7
+      ami: ami-056d2deb35634ac41
     ap-northeast-3:
-      ami: ami-01d7109b399c6b223
+      ami: ami-0622ca7378c013ac4
     ap-northeast-2:
-      ami: ami-06b9122710049dfe7
+      ami: ami-0a89dbe9112c9066b
     ap-northeast-1:
-      ami: ami-0d5142f63c808d143
+      ami: ami-0d61f4c9127f22439
     ca-central-1:
-      ami: ami-04609b5b156500b17
+      ami: ami-0fdd2bb78451114e8
     sa-east-1:
-      ami: ami-0b123273fd25fe833
+      ami: ami-007e130096c4060bd
     ap-southeast-1:
-      ami: ami-0fcd2e9ac9a168217
+      ami: ami-0293d5edd542189e4
     ap-southeast-2:
-      ami: ami-09fb3a51968a858cd
+      ami: ami-05b4ba25c34ccdc2d
     eu-central-1:
-      ami: ami-0087bd2f5c26af5ca
+      ami: ami-0db3b3e2b9f049df7
     us-east-1:
-      ami: ami-005b11f8b84489615
+      ami: ami-02aead0a55359d6ec
     us-east-2:
-      ami: ami-08778753ef37aa408
+      ami: ami-07d8bd8fbf89bf6dc
     us-west-1:
-      ami: ami-0267fc24ee0102728
+      ami: ami-031f57f3941858674
     us-west-2:
-      ami: ami-081aaface2871d0d0
+      ami: ami-0fe551f63319344fa
 
 Resources:
   # Customer VPC
@@ -106,10 +108,10 @@ Resources:
               - ""
               - - Fn::ImportValue:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
-                - "-customer-vpc-bastion"
+                - "-customer-vpc"
         - Key: "redhattraining:course-sku"
-          Value: CS220
-  # Modify default vpc nacl to deny all inbound
+          Value: CS220-customerVPC
+  # Update the default Network ACL to deny all inbound requests
   rInboundNetworkACLRule1:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
@@ -122,7 +124,7 @@ Resources:
       RuleAction: deny
       CidrBlock: 0.0.0.0/0
 
-  # Private subnets in the customer VPC
+  # First private subnet in the customer VPC, in the first AZ
   rCustomerVpcPrivateSubnetA:
     Type: AWS::EC2::Subnet
     DependsOn: rCustomerVpc
@@ -145,8 +147,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-a"
         - Key: "redhattraining:course-sku"
-          Value: CS220
-  # Private subnet in second AZ. Used later to create db subnetgroup
+          Value: CS220-customerVPC
+  # Second private subnet in the second AZ. This subnet is required to create
+  # RDS subnet group.
   rCustomerVpcPrivateSubnetB:
     Type: AWS::EC2::Subnet
     DependsOn: rCustomerVpc
@@ -169,9 +172,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-b"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
 
-  # New nacl for private subnet
+  # Network ACLs for the first private subnet
   rNetworkAclCustomerVpcPrivateSubnet:
     Type: AWS::EC2::NetworkAcl
     Properties:
@@ -186,7 +189,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-nacl-customer-private-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
   rNetworkAclAssociationCustomerVpcPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -197,7 +200,7 @@ Resources:
         Ref: rCustomerVpcPrivateSubnetA
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
-  # Allow outbound access to allow download of oc cli
+  # Allow return packets
   rCustomerVpcPrivateSubnetAOutboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -210,8 +213,11 @@ Resources:
       RuleAction: allow
       CidrBlock: 0.0.0.0/0
       PortRange:
-        From: 443
-        To: 443
+        From: 32768
+        To: 60999
+  # Allow HTTP and HTTPS outbound access to enable the download of the aws,
+  # rosa, and oc CLIs in the bastion host, and to enable the access to the
+  # workloads in OpenShift exposed with routes.
   rCustomerVpcPrivateSubnetAOutboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -224,9 +230,8 @@ Resources:
       RuleAction: allow
       CidrBlock: 0.0.0.0/0
       PortRange:
-        From: 80
-        To: 80
-  # Allow outbound access to ROSA cluster
+        From: 443
+        To: 443
   rCustomerVpcPrivateSubnetAOutboundNetworkAclRule3:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -237,11 +242,27 @@ Resources:
       Protocol: 6
       Egress: true
       RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+  # Allow outbound access to the ROSA cluster API
+  rCustomerVpcPrivateSubnetAOutboundNetworkAclRule4:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 53
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
       CidrBlock:
         Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
       PortRange:
         From: 6443
         To: 6443
+  # Allow inbound return packets
   rCustomerVpcPrivateSubnetAInboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -253,9 +274,10 @@ Resources:
       RuleAction: allow
       CidrBlock: 0.0.0.0/0
       PortRange:
-        From: 1024
-        To: 65535
-  # Allow Inbound access from ROSA cluster via tg
+        From: 32768
+        To: 60999
+  # Allow traffic through the transit gateway. See
+  # https://docs.aws.amazon.com/vpc/latest/tgw/tgw-nacls.html
   rCustomerVpcPrivateSubnetAInboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -268,8 +290,8 @@ Resources:
       CidrBlock:
         Ref: pCustomerVpcCidrBlock
       PortRange:
-        From: 80
-        To: 80
+        From: 443
+        To: 443
   rCustomerVpcPrivateSubnetAInboundNetworkAclRule3:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -282,8 +304,37 @@ Resources:
       CidrBlock:
         Ref: pCustomerVpcCidrBlock
       PortRange:
-        From: 443
-        To: 443
+        From: 80
+        To: 80
+  rCustomerVpcPrivateSubnetAInboundNetworkAclRule4:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 53
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 6443
+        To: 6443
+  # Allow MySQL access from the ROSA VPC
+  rCustomerVpcPrivateSubnetAInboundNetworkAclRule5:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 54
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+      PortRange:
+        From: 3306
+        To: 3306
 
   # Public subnet in the customer VPC
   rCustomerVpcPublicSubnet:
@@ -307,8 +358,8 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220
-  # New nacl for public subnet
+          Value: CS220-customerVPC
+  # Network ACLs for the public subnet (all everything)
   rNetworkAclCustomerVpcPublicSubnet:
     Type: AWS::EC2::NetworkAcl
     Properties:
@@ -323,7 +374,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-nacl-customer-public-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
   rNetworkAclAssociationCustomerVpcPublicSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -375,7 +426,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-igw"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
   rInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     DependsOn: rCustomerVpc
@@ -399,7 +450,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-nat-eip"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
   rNATGateway:
     Type: AWS::EC2::NatGateway
     DependsOn: rElasticIP
@@ -419,7 +470,85 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-nat"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
+
+  # Transit Gateway Attachment to the transit gateway created in the previous
+  # stack
+  rCustomerVpcTransitGatewayAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    DependsOn:
+      - rCustomerVpcPrivateSubnetA
+      - rCustomerVpc
+    Properties:
+      SubnetIds:
+        - Ref: rCustomerVpcPrivateSubnetA
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
+      VpcId:
+        Ref: rCustomerVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-twg-customer-vpc-attachment"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-customerVPC
+
+  #
+  # Route tables
+  #
+
+  # Transit gateway route table (customer)
+  rTransitGatewayCustomerRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-twg-customer-vpc-rt"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-customerVPC
+  rTransitGatewayCustomerRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    DependsOn:
+      - rCustomerVpcTransitGatewayAttachment
+      - rTransitGatewayCustomerRouteTable
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: rCustomerVpcTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayCustomerRouteTable
+  # Route to the ROSA VPC
+  rPropagateRosaVPCRoute:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    DependsOn: rTransitGatewayCustomerRouteTable
+    Properties:
+      TransitGatewayAttachmentId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, TransitGatewayRosaAttachment]]
+      TransitGatewayRouteTableId:
+        Ref: rTransitGatewayCustomerRouteTable
+  # Route from the ROSA VPC to the customer VPC
+  rCustomerTransitGatewayRoute:
+    Type: AWS::EC2::TransitGatewayRoute
+    DependsOn: rCustomerVpcTransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      TransitGatewayAttachmentId:
+        Ref: rCustomerVpcTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, TransitGatewayRosaRouteTable]]
 
   # Customer VPC private subnet route table
   rCustomerVpcPrivateRouteTable:
@@ -437,7 +566,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
   rCustomerVpcPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -448,16 +577,31 @@ Resources:
         Ref: rCustomerVpcPrivateSubnetA
       RouteTableId:
         Ref: rCustomerVpcPrivateRouteTable
-  # Route from the private subnet to NAT gateway for Internet
+  # Route from the private subnet to NAT gateway for internet access
   rCustomerPrivateRoute1:
     Type: AWS::EC2::Route
-    DependsOn: rCustomerVpcPrivateRouteTable
+    DependsOn:
+      - rCustomerVpcPrivateRouteTable
+      - rNATGateway
     Properties:
       RouteTableId:
         Ref: rCustomerVpcPrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId:
         Ref: rNATGateway
+  # Route from the private subnet to the ROSA VPC (via the transit gateway)
+  rCustomerPrivateToRosaRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - rCustomerVpcPrivateRouteTable
+      - rCustomerVpcTransitGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: rCustomerVpcPrivateRouteTable
+      DestinationCidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
 
   # Customer VPC public subnet route table
   rCustomerVpcPublicRouteTable:
@@ -475,7 +619,7 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
   rCustomerPublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -486,16 +630,22 @@ Resources:
         Ref: rCustomerVpcPublicSubnet
       RouteTableId:
         Ref: rCustomerVpcPublicRouteTable
-  # Route from the public subnet to NAT gateway for Internet
+  # Route from the public subnet to the NAT gateway for internet access
   rCustomerPublicRoute1:
     Type: AWS::EC2::Route
-    DependsOn: rCustomerVpcPublicRouteTable
+    DependsOn:
+      - rCustomerVpcPublicRouteTable
+      - rInternetGateway
     Properties:
       RouteTableId:
         Ref: rCustomerVpcPublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId:
         Ref: rInternetGateway
+
+  #
+  # Bastion host
+  #
 
   # Security Group for bastion
   rSecurityGroupBastion:
@@ -504,7 +654,8 @@ Resources:
     Properties:
       GroupDescription: Enable SSH and RDP access
       GroupName: Bastion Host Security Group
-      VpcId: !Ref rCustomerVpc
+      VpcId:
+        Ref: rCustomerVpc
       Tags:
         - Key: Name
           Value:
@@ -514,16 +665,40 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-bastion-sg"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
       SecurityGroupIngress:
-        - CidrIp: !Ref pSshLocation
+        - CidrIp:
+            Ref: pSshSourceAllowed
           FromPort: 22
           ToPort: 22
           IpProtocol: tcp
-        - CidrIp: !Ref pRdpLocation
+        - CidrIp:
+            Ref: pRdpSourceAllowed
           FromPort: 3389
           ToPort: 3389
           IpProtocol: tcp
+
+  # EC2 instance connect endpoint
+  rCustomerInstanceConnectEndpoint:
+    Type: AWS::EC2::InstanceConnectEndpoint
+    DependsOn:
+      - rSecurityGroupBastion
+      - rCustomerVpcPrivateSubnetA
+    Properties:
+      SecurityGroupIds:
+        - Ref: rSecurityGroupBastion
+      SubnetId:
+        Ref: rCustomerVpcPrivateSubnetA
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-bastion-connect-endpoint"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-customerVPC
 
   # Bastion EC2 instance
   rBastionHost:
@@ -532,18 +707,40 @@ Resources:
       - rSecurityGroupBastion
       - rCustomerVpcPrivateSubnetA
     Properties:
-      InstanceType: !Ref pInstanceType
+      InstanceType:
+        Ref: pInstanceType
       ImageId: !FindInMap
         - RegionMap
-        - !Ref "AWS::Region"
+        - Ref: "AWS::Region"
         - ami
       NetworkInterfaces:
         - GroupSet:
-            - !Ref rSecurityGroupBastion
+            - Ref: rSecurityGroupBastion
           AssociatePublicIpAddress: false
           DeviceIndex: 0
           DeleteOnTermination: true
-          SubnetId: !Ref rCustomerVpcPrivateSubnetA
+          SubnetId:
+            Ref: rCustomerVpcPrivateSubnetA
+      UserData:
+        # To prevent yamllint from reporting errors
+        # yamllint disable
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+          # Download and install the oc and kubectl command
+          curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz -o $HOME/openshift-client-linux.tar.gz
+          tar -xzvf $HOME/openshift-client-linux.tar.gz -C /usr/local/sbin/ oc kubectl
+          # Download and install the rosa command
+          curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/latest/rosa-linux.tar.gz -o $HOME/rosa-linux.tar.gz
+          tar -xzvf  $HOME/rosa-linux.tar.gz -C /usr/local/bin/ rosa
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && ./aws/install
+          # Change the password for the ec2-user
+          echo "redhat123" | passwd ec2-user --stdin
+          # Generate the certificate for xrdp
+          openssl req -x509 -sha384 -newkey rsa:3072 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=Delaware/L=Raleigh/O=Red Hat, Inc./OU=Red Hat Training/CN=bastion"
+          # Update all the packages and reboot the system
+          yum update -y --disableplugin=priorities && reboot
+      # yamllint enable
       Tags:
         - Key: Name
           Value:
@@ -553,16 +750,21 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-bastion-instance"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
 
-  # Security Group for rds
+  #
+  # RDS instance
+  #
+
+  # Security Group for RDS
   rSecurityGroupDatabase:
     Type: AWS::EC2::SecurityGroup
     DependsOn: rCustomerVpc
     Properties:
-      GroupDescription: Enable mysql connectivity to Rosa cluster
+      GroupDescription: Enable MySQL connectivity from the Rosa cluster
       GroupName: Database Security Group
-      VpcId: !Ref rCustomerVpc
+      VpcId:
+        Ref: rCustomerVpc
       Tags:
         - Key: Name
           Value:
@@ -572,18 +774,12 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-database-sg"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
       SecurityGroupIngress:
         - CidrIp:
             Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
           FromPort: 3306
           ToPort: 3306
-          IpProtocol: tcp
-      SecurityGroupEgress:
-        - CidrIp:
-            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
-          FromPort: 1024
-          ToPort: 65535
           IpProtocol: tcp
 
   # Database subnet group
@@ -593,8 +789,8 @@ Resources:
       DBSubnetGroupName: testdbsubnetgroup
       DBSubnetGroupDescription: custom db subnet group
       SubnetIds:
-        - !Ref rCustomerVpcPrivateSubnetA
-        - !Ref rCustomerVpcPrivateSubnetB
+        - Ref: rCustomerVpcPrivateSubnetA
+        - Ref: rCustomerVpcPrivateSubnetB
       Tags:
         - Key: Name
           Value:
@@ -604,9 +800,10 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-db-subnetgroup"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
 
-  # RDS mysql instance. Application on Rosa will connect to it.
+  # RDS MySQL instance. An application running in your ROSA cluster connects to
+  # that database.
   rRdsInstance:
     Type: "AWS::RDS::DBInstance"
     Properties:
@@ -626,13 +823,13 @@ Resources:
       DBName: quotesdb
       StorageEncrypted: false
       StorageType: standard
-      BackupRetentionPeriod: 1
+      BackupRetentionPeriod: 0
       DeleteAutomatedBackups: true
       DeletionProtection: false
       DBSubnetGroupName:
         Ref: rRdsDBSubnetGroup
       VPCSecurityGroups:
-        - !Ref rSecurityGroupDatabase
+        - Ref: rSecurityGroupDatabase
       Tags:
         - Key: Name
           Value:
@@ -642,85 +839,61 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-database-instance"
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS220-customerVPC
 
 Outputs:
-  oBastionHost:
-    Description: Bastion Host Instance
-    Value: !Ref rBastionHost
-    Export:
-      Name: !Sub "${AWS::StackName}-BastionHost"
   oCustomerVPC:
     Description: Customer VPC
-    Value: !Ref rCustomerVpc
+    Value:
+      Ref: rCustomerVpc
+  oCustomerVpcCIDR:
+    Description: Customer private VPC CIDR block
+    Value: !GetAtt rCustomerVpc.CidrBlock
     Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPC"
-  oInboundNetworkACLRule1:
-    Description: NACL rule to deny all inbound traffic in customer VPC
-    Value: !Ref rInboundNetworkACLRule1
+      Name: !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
   oCustomerVPCPrivateSubnetA:
-    Description: Customer VPC Private Subnet in first AZ
-    Value: !Ref rCustomerVpcPrivateSubnetA
+    Description: Customer VPC private subnet
+    Value:
+      Ref: rCustomerVpcPrivateSubnetA
     Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnetA"
-  oCustomerVPCPrivateSubnetB:
-    Description: Customer VPC Private Subnet in second AZ
-    Value: !Ref rCustomerVpcPrivateSubnetB
-    Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateSubnetB"
-  oNetworkAclCustomerVpcPrivateSubnet:
-    Description: Nacl for private subnet in customer vpc
-    Value: !Ref rNetworkAclCustomerVpcPrivateSubnet
+      Name: !Join [":", [!Ref RosaStackName, CustomerVpcPrivateSubnetA]]
   oCustomerVPCPublicSubnet:
-    Description: Customer VPC Public Subnet
-    Value: !Ref rCustomerVpcPublicSubnet
-    Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPCPublicSubnet"
-  oNetworkAclCustomerVpcPublicSubnet:
-    Description: Nacl for public subnet in customer vpc
-    Value: !Ref rNetworkAclCustomerVpcPublicSubnet
+    Description: Customer VPC public subnet
+    Value:
+      Ref: rCustomerVpcPublicSubnet
   oInternetGateway:
-    Description: Internet Gateway
-    Value: !Ref rInternetGateway
-    Export:
-      Name: !Sub "${AWS::StackName}-InternetGateway"
-  oElasticIP:
-    Description: Elastic IP
-    Value: !Ref rElasticIP
-    Export:
-      Name: !Sub "${AWS::StackName}-ElasticIP"
-  oNATGateway:
-    Description: NAT Gateway
-    Value: !Ref rNATGateway
-    Export:
-      Name: !Sub "${AWS::StackName}-NATGateway"
-  oCustomerVPCPrivateRouteTable:
-    Description: Route Table for Customer VPC Private Subnet
-    Value: !Ref rCustomerVpcPrivateRouteTable
-    Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPCPrivateRouteTable"
-  oCustomerVPCPublicRouteTable:
-    Description: Route Table for Customer VPC Public Subnet
-    Value: !Ref rCustomerVpcPublicRouteTable
-    Export:
-      Name: !Sub "${AWS::StackName}-CustomerVPCPublicRouteTable"
+    Description: Internet gateway in the customer VPC
+    Value:
+      Ref: rInternetGateway
+  oNAT:
+    Description: NAT gateway in the customer VPC
+    Value:
+      Ref: rNATGateway
+  oEIP:
+    Description: Elastic IP for the NAT gateway in the customer VPC
+    Value:
+      Ref: rElasticIP
+  oCustomerVpcTransitGatewayAttachment:
+    Description: Transit Gateway Attachment
+    Value:
+      Ref: rCustomerVpcTransitGatewayAttachment
   oSecurityGroupBastion:
-    Description: Security Group for Bastion Host
-    Value: !Ref rSecurityGroupBastion
-    Export:
-      Name: !Sub "${AWS::StackName}-SecurityGroupBastion"
+    Description: Security group for the bastion host
+    Value:
+      Ref: rSecurityGroupBastion
+  oCustomerInstanceConnectEndpoint:
+    Description: ECS instance connect endpoint in the private subnet
+    Value:
+      Ref: rCustomerInstanceConnectEndpoint
+  oBastionHost:
+    Description: Bastion host instance
+    Value:
+      Ref: rBastionHost
   oSecurityGroupDatabase:
-    Description: Security Group for database
-    Value: !Ref rSecurityGroupDatabase
-    Export:
-      Name: !Sub "${AWS::StackName}-SecurityGroupDatabase"
-  oRdsDBSubnetGroup:
-    Description: Subnet group for RDS
-    Value: !Ref rRdsDBSubnetGroup
-    Export:
-      Name: !Sub "${AWS::StackName}-DatabaseSubnetGroup"
+    Description: Security group for the MySQL database
+    Value:
+      Ref: rSecurityGroupDatabase
   oRdsInstance:
-    Description: Mysql RDS instance
-    Value: !Ref rRdsInstance
-    Export:
-      Name: !Sub "${AWS::StackName}-RdsInstance"
+    Description: Database instance
+    Value:
+      Ref: rRdsInstance
