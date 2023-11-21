@@ -262,6 +262,21 @@ Resources:
       PortRange:
         From: 6443
         To: 6443
+  rCustomerVpcPrivateSubnetAOutboundNetworkAclRule5:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 54
+      Protocol: 6
+      Egress: true
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 22
+        To: 22
   # Allow inbound return packets
   rCustomerVpcPrivateSubnetAInboundNetworkAclRule1:
     Type: AWS::EC2::NetworkAclEntry
@@ -320,7 +335,7 @@ Resources:
       PortRange:
         From: 6443
         To: 6443
-  # Allow MySQL access from the ROSA VPC
+  # Allow SSH from the AWS Client VPN endpoint
   rCustomerVpcPrivateSubnetAInboundNetworkAclRule5:
     Type: AWS::EC2::NetworkAclEntry
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
@@ -328,6 +343,21 @@ Resources:
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
       RuleNumber: 54
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock:
+        Ref: pCustomerVpcCidrBlock
+      PortRange:
+        From: 22
+        To: 22
+  # Allow MySQL access from the ROSA VPC
+  rCustomerVpcPrivateSubnetAInboundNetworkAclRule6:
+    Type: AWS::EC2::NetworkAclEntry
+    DependsOn: rNetworkAclCustomerVpcPrivateSubnet
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclCustomerVpcPrivateSubnet
+      RuleNumber: 55
       Protocol: 6
       RuleAction: allow
       CidrBlock:
@@ -871,6 +901,8 @@ Outputs:
     Description: Customer VPC
     Value:
       Ref: rCustomerVpc
+    Export:
+      Name: !Join [":", [!Ref RosaStackName, CustomerVpc]]
   oCustomerVpcCIDR:
     Description: Customer private VPC CIDR block
     Value: !GetAtt rCustomerVpc.CidrBlock

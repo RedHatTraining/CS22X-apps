@@ -29,8 +29,47 @@ Parameters:
     Type: String
 
 Resources:
+  rSecurityGroupEndpoint:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable OpenShift and SSH access
+      GroupName: AWS Client VPN endpoint Security Group
+      VpcId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpc]]
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-vpn-sg"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-VPN
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 443
+          ToPort: 443
+          IpProtocol: tcp
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 6443
+          ToPort: 6443
+          IpProtocol: tcp
   rCustomerClientVpnEndpoint:
     Type: AWS::EC2::ClientVpnEndpoint
+    DependsOn: rSecurityGroupEndpoint
     Properties:
       AuthenticationOptions:
         - Type: "certificate-authentication"
@@ -68,6 +107,10 @@ Resources:
         Ref: pVpnClientCidrBlock
       ConnectionLogOptions:
         Enabled: false
+      VpcId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpc]]
+      SecurityGroupIds:
+        - Ref: rSecurityGroupEndpoint
       TagSpecifications:
         - ResourceType: "client-vpn-endpoint"
           Tags:
@@ -122,6 +165,10 @@ Resources:
 
 Outputs:
   oCustomerClientVpnEndpoint:
-    Description: VPC endpoint
+    Description: AWS Client VPN endpoint
     Value:
       Ref: rCustomerClientVpnEndpoint
+  oSecurityGroupEndpoint:
+    Description: Security group for the AWS Client VPN endpoint
+    Value:
+      Ref: rSecurityGroupEndpoint
