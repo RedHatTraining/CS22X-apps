@@ -647,6 +647,28 @@ Resources:
   # Bastion host
   #
 
+  # Key pairs are stored in AWS Systems Manager parameter store at
+  # /ec2/keypair/<key-pair-id>
+  rKeyPairEc2Vpn:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ec2KeyPairVpn"
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ec2-keypair-customer-vpc-vpn"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-customerVPC
+
   # Security Group for bastion
   rSecurityGroupBastion:
     Type: AWS::EC2::SecurityGroup
@@ -706,9 +728,12 @@ Resources:
     DependsOn:
       - rSecurityGroupBastion
       - rCustomerVpcPrivateSubnetA
+      - rKeyPairEc2Vpn
     Properties:
       InstanceType:
         Ref: pInstanceType
+      KeyName:
+        Ref: rKeyPairEc2Vpn
       ImageId: !FindInMap
         - RegionMap
         - Ref: "AWS::Region"
@@ -885,6 +910,10 @@ Outputs:
     Description: ECS instance connect endpoint in the private subnet
     Value:
       Ref: rCustomerInstanceConnectEndpoint
+  oKeyPairEc2Vpn:
+    Description: SSH key pair for the bastion host
+    Value:
+      Ref: rKeyPairEc2Vpn
   oBastionHost:
     Description: Bastion host instance
     Value:
