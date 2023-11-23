@@ -357,7 +357,7 @@ Resources:
     Properties:
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
-      RuleNumber: 52
+      RuleNumber: 51
       Protocol: 6
       RuleAction: allow
       CidrBlock:
@@ -372,7 +372,7 @@ Resources:
     Properties:
       NetworkAclId:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
-      RuleNumber: 53
+      RuleNumber: 52
       Protocol: 6
       RuleAction: allow
       CidrBlock:
