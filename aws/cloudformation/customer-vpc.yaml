@@ -889,7 +889,12 @@ Resources:
       MasterUsername: admin
       MasterUserPassword: redhat123
       Port: "3306"
-      DBInstanceIdentifier: rds-mysql
+      DBInstanceIdentifier:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-customer-db"
       AllocatedStorage: "20"
       DBName: quotesdb
       StorageEncrypted: false
