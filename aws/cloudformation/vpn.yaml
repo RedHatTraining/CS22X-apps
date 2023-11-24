@@ -1,0 +1,174 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates the client VPN endpoint in the private subnet of the
+  customer VPC.
+
+Parameters:
+  RosaStackName:
+    Description: >
+      Name of the stack that deployed the AWS infrastructure for the
+      ROSA cluster.
+    Type: String
+  pVpnClientCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 172.16.0.0/16
+    Description: >
+      CIDR block for IP addresses to assign to VPN clients
+      (172.16.0.0/16 for example).
+    Type: String
+  pVpnClientCertARN:
+    AllowedPattern: "arn:aws:acm:.*"
+    Description: >
+      ARN of the VPN client certificate stored in AWS Certificate Manager.
+    Type: String
+  pVpnServerCertARN:
+    AllowedPattern: "arn:aws:acm:.*"
+    Description: >
+      ARN of the VPN server certificate stored in AWS Certificate Manager.
+    Type: String
+
+Resources:
+  rSecurityGroupEndpoint:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable OpenShift and SSH access
+      GroupName: AWS Client VPN endpoint Security Group
+      VpcId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpc]]
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-customer-vpn-sg"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-VPN
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 443
+          ToPort: 443
+          IpProtocol: tcp
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+        - CidrIp:
+            Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+          FromPort: 6443
+          ToPort: 6443
+          IpProtocol: tcp
+  rCustomerClientVpnEndpoint:
+    Type: AWS::EC2::ClientVpnEndpoint
+    DependsOn: rSecurityGroupEndpoint
+    Properties:
+      AuthenticationOptions:
+        - Type: "certificate-authentication"
+          MutualAuthentication:
+            ClientRootCertificateChainArn:
+              Ref: pVpnClientCertARN
+      DnsServers:
+        # VPC CIDR + 2: 10.2.0.2
+        - Fn::Join:
+            - "."
+            - - Fn::Select:
+                  - "0"
+                  - Fn::Split:
+                      - "."
+                      - Fn::ImportValue:
+                          !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
+              - Fn::Select:
+                  - "1"
+                  - Fn::Split:
+                      - "."
+                      - Fn::ImportValue:
+                          !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
+              - Fn::Select:
+                  - "2"
+                  - Fn::Split:
+                      - "."
+                      - Fn::ImportValue:
+                          !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
+              - "2"
+      SplitTunnel: true
+      TransportProtocol: "udp"
+      ServerCertificateArn:
+        Ref: pVpnServerCertARN
+      ClientCidrBlock:
+        Ref: pVpnClientCidrBlock
+      ConnectionLogOptions:
+        Enabled: false
+      VpcId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpc]]
+      SecurityGroupIds:
+        - Ref: rSecurityGroupEndpoint
+      TagSpecifications:
+        - ResourceType: "client-vpn-endpoint"
+          Tags:
+            - Key: "Name"
+              Value:
+                Fn::Join:
+                  - ""
+                  - - Fn::ImportValue:
+                        !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                    - "-customer-client-vpn-endpoint"
+            - Key: "redhattraining:course-sku"
+              Value: CS220-VPN
+  # Target customer network association for the VPN endpoint
+  rCustomerClientVpnTargetNetwork:
+    Type: AWS::EC2::ClientVpnTargetNetworkAssociation
+    DependsOn: rCustomerClientVpnEndpoint
+    Properties:
+      ClientVpnEndpointId:
+        Ref: rCustomerClientVpnEndpoint
+      SubnetId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, CustomerVpcPrivateSubnetA]]
+  rCustomerClientVpnRoute:
+    Type: AWS::EC2::ClientVpnRoute
+    DependsOn: rCustomerClientVpnTargetNetwork
+    Properties:
+      ClientVpnEndpointId:
+        Ref: rCustomerClientVpnEndpoint
+      DestinationCidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+      TargetVpcSubnetId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, CustomerVpcPrivateSubnetA]]
+  rCustomerClientVpnAuthorization1:
+    Type: AWS::EC2::ClientVpnAuthorizationRule
+    DependsOn: rCustomerClientVpnEndpoint
+    Properties:
+      AuthorizeAllGroups: true
+      ClientVpnEndpointId:
+        Ref: rCustomerClientVpnEndpoint
+      TargetNetworkCidr:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, CustomerVpcCidr]]
+  rCustomerClientVpnAuthorization2:
+    Type: AWS::EC2::ClientVpnAuthorizationRule
+    DependsOn: rCustomerClientVpnEndpoint
+    Properties:
+      AuthorizeAllGroups: true
+      ClientVpnEndpointId:
+        Ref: rCustomerClientVpnEndpoint
+      TargetNetworkCidr:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+
+Outputs:
+  oCustomerClientVpnEndpoint:
+    Description: AWS Client VPN endpoint
+    Value:
+      Ref: rCustomerClientVpnEndpoint
+  oSecurityGroupEndpoint:
+    Description: Security group for the AWS Client VPN endpoint
+    Value:
+      Ref: rSecurityGroupEndpoint
