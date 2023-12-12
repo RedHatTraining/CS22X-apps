@@ -169,6 +169,11 @@ Resources:
             - - "https://oauth-openshift.apps."
               - !Ref ClusterDomain
               - "/oauth2callback/Cognito"
+      LogoutURLs:
+        - Fn::Join:
+            - ""
+            - - "https://console-openshift-console.apps."
+              - !Ref ClusterDomain
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthScopes:
         - email
