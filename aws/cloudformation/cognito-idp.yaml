@@ -1,35 +1,45 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  This template creates an AWS Cognito resources for the guided exercise.
+  This template creates Amazon Cognito resources for the guided exercise.
 
 Parameters:
   RosaStackName:
     Description: >
-      Name of the stack that deployed the AWS Cognito Resources
+      Name of the stack that deployed the AWS infrastructure
+      for the ROSA cluster.
     Type: String
-  pClusterDomain:
-    Description: |
-      Name of the CS220 cluster domain.
-      You must get this parameter by using the following command:
+  ClusterDomain:
+    Description: >
+      DNS domain of the ROSA cluster. Run the
+      "rosa describe cluster -c cs220yourname" command to retrieve that DNS
+      domain. The domain is provided in the "DNS" attribute.
     Type: String
 
 Resources:
-  # Cognito user-pool
+  # Cognito user pool
   rCognitoUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: cs220-user-pool
+      UserPoolName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-user-pool"
       AutoVerifiedAttributes:
         - email
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: true
-  # Create user-pool Domain
+      UserPoolTags:
+        "redhattraining:course-sku": CS220-cognito
+  # Create user pool Domain
   rCognitoUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     DependsOn: rCognitoUserPool
     Properties:
-      Domain: cs220-cluster
+      Domain:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaClusterName]]
       UserPoolId:
         Ref: rCognitoUserPool
   # Create users for Cognito
@@ -75,13 +85,13 @@ Resources:
           Value: true
       UserPoolId:
         Ref: rCognitoUserPool
+  # Create groups for Cognito
   rCongnitoUserPoolGroupManagers:
     Type: AWS::Cognito::UserPoolGroup
     DependsOn: rCognitoUserPool
     Properties:
       GroupName: managers
-      Description: >
-        Group for Managers
+      Description: Group for Managers
       UserPoolId:
         Ref: rCognitoUserPool
   rCongnitoUserPoolGroupDevelopers:
@@ -89,8 +99,7 @@ Resources:
     DependsOn: rCognitoUserPool
     Properties:
       GroupName: developers
-      Description: >
-        Group for Developers
+      Description: Group for Developers
       UserPoolId:
         Ref: rCognitoUserPool
   rCongnitoUserPoolGroupOperations:
@@ -98,8 +107,7 @@ Resources:
     DependsOn: rCognitoUserPool
     Properties:
       GroupName: operations
-      Description: >
-        Group for Operations
+      Description: Group for Operations
       UserPoolId:
         Ref: rCognitoUserPool
   rCognitoUserToGroupManagers:
@@ -112,7 +120,27 @@ Resources:
       Username: amroy
       UserPoolId:
         Ref: rCognitoUserPool
-  # Cognit user pool client
+  rCognitoUserToGroupDevelopers:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    DependsOn:
+      - rCognitoUserPool
+      - rCongnitoUserPoolGroupDevelopers
+    Properties:
+      GroupName: developers
+      Username: smoody
+      UserPoolId:
+        Ref: rCognitoUserPool
+  rCognitoUserToGroupOperations:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    DependsOn:
+      - rCognitoUserPool
+      - rCongnitoUserPoolGroupOperations
+    Properties:
+      GroupName: operations
+      Username: rruiz
+      UserPoolId:
+        Ref: rCognitoUserPool
+  # Cognito user pool client
   rCognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     DependsOn:
@@ -120,7 +148,12 @@ Resources:
     Properties:
       UserPoolId:
         Ref: rCognitoUserPool
-      ClientName: cs220-user-pool-client
+      ClientName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-user-pool-client"
       GenerateSecret: true
       SupportedIdentityProviders:
         - COGNITO
@@ -128,14 +161,39 @@ Resources:
         - Fn::Join:
             - ""
             - - "https://oauth-openshift.apps."
-              - !Ref pClusterDomain
+              - !Ref ClusterDomain
               - "/oauth2callback/Cognito"
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthScopes:
-        - phone
         - email
         - openid
         - profile
         - aws.cognito.signin.user.admin
       AllowedOAuthFlows:
         - code
+
+Outputs:
+  oUserPoolId:
+    Description: Pool ID
+    Value:
+      Ref: rCognitoUserPool
+  oUserPoolClientId:
+    Description: >
+      Client ID. Use that ID for the --client-id option of the "rosa create idp"
+      command.
+    Value:
+      Ref: rCognitoUserPoolClient
+  oIssuerURL:
+    Description: >
+      Issuer URL. Use that URL for the --issuer-url option of the
+      "rosa create idp" command.
+    # https://cognito-idp.<AWS::Region>.amazonaws.com/<rCognitoUserPool>
+    Value:
+      Fn::Join:
+        - "/"
+        - - Fn::Join:
+              - "."
+              - - "https://cognito-idp"
+                - !Ref "AWS::Region"
+                - "amazonaws.com"
+          - !Ref rCognitoUserPool
