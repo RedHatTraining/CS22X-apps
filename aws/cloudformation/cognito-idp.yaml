@@ -49,6 +49,8 @@ Resources:
     Properties:
       Username: amroy
       UserAttributes:
+        - Name: preferred_username
+          Value: amroy
         - Name: name
           Value: Amelia Roy
         - Name: email
@@ -63,6 +65,8 @@ Resources:
     Properties:
       Username: smoody
       UserAttributes:
+        - Name: preferred_username
+          Value: smoody
         - Name: name
           Value: Sue Moody
         - Name: email
@@ -77,6 +81,8 @@ Resources:
     Properties:
       Username: rruiz
       UserAttributes:
+        - Name: preferred_username
+          Value: rruiz
         - Name: name
           Value: Roberto Ruiz
         - Name: email
