@@ -799,12 +799,12 @@ Resources:
           #!/bin/bash -xe
           exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
           # Download and install the oc and kubectl command
-          curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz -o $HOME/openshift-client-linux.tar.gz
-          tar -xzvf $HOME/openshift-client-linux.tar.gz -C /usr/local/sbin/ oc kubectl
+          curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz -o /tmp/openshift-client-linux.tar.gz
+          tar -xzvf /tmp/openshift-client-linux.tar.gz -C /usr/local/sbin/ oc kubectl
           # Download and install the rosa command
-          curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/latest/rosa-linux.tar.gz -o $HOME/rosa-linux.tar.gz
-          tar -xzvf  $HOME/rosa-linux.tar.gz -C /usr/local/bin/ rosa
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && unzip awscliv2.zip && ./aws/install
+          curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/latest/rosa-linux.tar.gz -o /tmp/rosa-linux.tar.gz
+          tar -xzvf  /tmp/rosa-linux.tar.gz -C /usr/local/bin/ rosa
+          cd /tmp && curl -L https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip && unzip awscliv2.zip && ./aws/install
           # Change the password for the ec2-user
           echo "redhat123" | passwd ec2-user --stdin
           # Generate the certificate for xrdp
