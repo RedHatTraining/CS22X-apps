@@ -31,6 +31,10 @@ Resources:
         - email
       AdminCreateUserConfig:
         AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          TemporaryPasswordValidityDays: 365
       UserPoolTags:
         "redhattraining:course-sku": CS220-cognito
   # Create user pool Domain
