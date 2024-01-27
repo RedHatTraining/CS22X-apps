@@ -59,6 +59,21 @@ Parameters:
     Description: >
       The IP address range that can use RDP to connect the bastion host.
     Type: String
+  pInstallDB:
+    Default: true
+    AllowedValues:
+      - true
+      - false
+    Description: >
+      Whether the Amazon RDS for MySQL instance should be deployed (true)
+      or not (false). By default, the instance is deployed (true).
+    Type: String
+
+Conditions:
+  InstallDB:
+    Fn::Equals:
+      - Ref: pInstallDB
+      - true
 
 # See https://octopus.com/blog/ami-mappings-cloudformation for a script that
 # generates the RegionMap mapping from an AMI name (amzn2-x86_64-MATEDE_DOTNET*)
@@ -278,6 +293,7 @@ Resources:
   # RDS subnet group.
   rCustomerVpcPrivateSubnetB:
     Type: AWS::EC2::Subnet
+    Condition: InstallDB
     DependsOn: rCustomerVpc
     Properties:
       VpcId:
@@ -328,6 +344,7 @@ Resources:
         Ref: rNetworkAclCustomerVpcPrivateSubnet
   rNetworkAclAssociationCustomerVpcPrivateSubnetB:
     Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: InstallDB
     DependsOn:
       - rCustomerVpcPrivateSubnetB
       - rNetworkAclCustomerVpcPrivateSubnet
@@ -353,6 +370,7 @@ Resources:
   # Allow MySQL access from the ROSA VPC
   rCustomerVpcPrivateSubnetAInboundNetworkAclRule2:
     Type: AWS::EC2::NetworkAclEntry
+    Condition: InstallDB
     DependsOn: rNetworkAclCustomerVpcPrivateSubnet
     Properties:
       NetworkAclId:
@@ -830,6 +848,7 @@ Resources:
   # Security Group for RDS
   rSecurityGroupDatabase:
     Type: AWS::EC2::SecurityGroup
+    Condition: InstallDB
     DependsOn: rCustomerVpc
     Properties:
       GroupDescription: Enable MySQL connectivity from the Rosa cluster
@@ -856,6 +875,7 @@ Resources:
   # Database subnet group
   rRdsDBSubnetGroup:
     Type: "AWS::RDS::DBSubnetGroup"
+    Condition: InstallDB
     Properties:
       DBSubnetGroupName: testdbsubnetgroup
       DBSubnetGroupDescription: custom db subnet group
@@ -877,6 +897,7 @@ Resources:
   # that database.
   rRdsInstance:
     Type: "AWS::RDS::DBInstance"
+    Condition: InstallDB
     Properties:
       DBInstanceClass: db.t3.micro
       MultiAZ: false
@@ -972,10 +993,12 @@ Outputs:
     Value:
       Ref: rBastionHost
   oSecurityGroupDatabase:
+    Condition: InstallDB
     Description: Security group for the MySQL database
     Value:
       Ref: rSecurityGroupDatabase
   oRdsInstance:
+    Condition: InstallDB
     Description: Database instance
     Value:
       Ref: rRdsInstance
