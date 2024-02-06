@@ -38,6 +38,7 @@ spec:
               drop:
                 - ALL
             allowPrivilegeEscalation: false
+          imagePullPolicy: Always
       securityContext:
         runAsNonRoot: true
         seccompProfile:
