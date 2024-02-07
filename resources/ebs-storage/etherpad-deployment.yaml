@@ -79,7 +79,7 @@ spec:
     - "ReadWriteOnce"
   resources:
     requests:
-      storage: "4Gi"
+      storage: "125Gi"
   storageClassName: etherpad-st1
 ---
 apiVersion: route.openshift.io/v1
