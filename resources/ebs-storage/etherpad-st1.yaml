@@ -7,6 +7,6 @@ provisioner: ebs.csi.aws.com
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
 parameters:
-csi.storage.k8s.io/fstype: ext4
-type: st1
-encrypted: "true"
+  csi.storage.k8s.io/fstype: ext4
+  type: st1
+  encrypted: "true"
