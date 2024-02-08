@@ -812,7 +812,7 @@ Resources:
             Ref: rCustomerVpcPrivateSubnetA
       UserData:
         # To prevent yamllint from reporting errors
-        # yamllint disable
+        # yamllint disable rule:line-length
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
@@ -829,7 +829,7 @@ Resources:
           openssl req -x509 -sha384 -newkey rsa:3072 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=Delaware/L=Raleigh/O=Red Hat, Inc./OU=Red Hat Training/CN=bastion"
           # Update all the packages and reboot the system
           yum update -y --disableplugin=priorities && reboot
-      # yamllint enable
+      # yamllint enable rule:line-length
       Tags:
         - Key: Name
           Value:

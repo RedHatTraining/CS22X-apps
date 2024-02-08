@@ -1,12 +1,13 @@
 ---
-# create configmap for prometheus cwagent config
+# Configuration map to store the CloudWatch agent configuration
 kind: ConfigMap
 metadata:
   name: prometheus-cwagentconfig
   namespace: amazon-cloudwatch
 apiVersion: v1
 data:
-  # cwagent json config
+  # To prevent yamllint from reporting errors
+  # yamllint disable rule:line-length
   cwagentconfig.json: |
     {
       "agent": {
@@ -58,10 +59,9 @@ data:
         "force_flush_interval": 5
       }
     }
-
-
+  # yamllint enable rule:line-length
 ---
-# create configmap for prometheus scrape config
+# Configuration map to store the Prometheus configuration
 kind: ConfigMap
 metadata:
   name: prometheus-config
@@ -99,7 +99,6 @@ data:
             source_labels:
               - __meta_kubernetes_service_name
             target_label: Service
-
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -127,13 +126,13 @@ spec:
             requests:
               cpu: 200m
               memory: 200Mi
-          # Please don't change below envs
+          # Do not change the following environment variables
           env:
             - name: CI_VERSION
               value: "k8s/1.3.8"
             - name: RUN_WITH_IRSA
               value: "True"
-          # Please don't change the mountPath
+          # Do not change the following mount paths
           volumeMounts:
             - name: prometheus-cwagentconfig
               mountPath: /etc/cwagentconfig
