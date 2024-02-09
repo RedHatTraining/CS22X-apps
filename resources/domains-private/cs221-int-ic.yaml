@@ -1,0 +1,20 @@
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: cs221-int
+  namespace: openshift-ingress-operator
+spec:
+  domain: apps.cs221<CHANGE_ME>.internal
+  endpointPublishingStrategy:
+    loadBalancer:
+      providerParameters:
+        aws:
+          type: NLB
+        type: AWS
+      scope: Internal
+      dnsManagementPolicy: Unmanaged
+    type: LoadBalancerService
+  routeSelector:
+    matchLabels:
+      type: internal-org
