@@ -1,0 +1,17 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: hello-world
+    type: internal-org
+  name: hello-world2
+spec:
+  subdomain: hello-world2
+  # or, instead of "subdomain":
+  # host: hello-world2.apps.cs221yourname.internal
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: hello-world
