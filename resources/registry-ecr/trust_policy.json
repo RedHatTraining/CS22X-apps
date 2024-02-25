@@ -1,0 +1,17 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::<CHANGE_ME>:oidc-provider/<CHANGE_ME>"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "<CHANGE_ME>:sub": "system:serviceaccount:ecr-secret-operator:ecr-secret-operator-controller-manager"
+                }
+            }
+        }
+    ]
+}
