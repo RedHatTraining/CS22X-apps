@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hello-world
+  name: hello-world
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-world
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      containers:
+        - name: hello-world
+          image: <CHANGE_ME>.dkr.ecr.<CHANGE_ME>.amazonaws.com/cs221-hello-world:v1.0
+          resources:
+            requests:
+              memory: 500Mi
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: /index.html
+              port: 8080
+          livenessProbe:
+            initialDelaySeconds: 20
+            httpGet:
+              path: /index.html
+              port: 8080
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            allowPrivilegeEscalation: false
+          imagePullPolicy: Always
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
