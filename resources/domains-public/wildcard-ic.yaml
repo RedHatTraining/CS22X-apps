@@ -1,0 +1,22 @@
+---
+apiVersion: operator.openshift.io/v1
+kind: IngressController
+metadata:
+  name: cs221-pub
+  namespace: openshift-ingress-operator
+spec:
+  domain: apps.<CHANGE_ME>
+  defaultCertificate:
+    name: cert-pub-tls
+  endpointPublishingStrategy:
+    loadBalancer:
+      providerParameters:
+        aws:
+          type: NLB
+        type: AWS
+      scope: Internal
+      dnsManagementPolicy: Unmanaged
+    type: LoadBalancerService
+  routeSelector:
+    matchLabels:
+      type: public-app

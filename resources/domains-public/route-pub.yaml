@@ -1,0 +1,15 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: hello-world
+    type: public-app
+  name: hello-world2
+spec:
+  subdomain: hello-world2
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: hello-world
