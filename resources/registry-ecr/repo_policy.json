@@ -6,7 +6,7 @@
             "Effect": "Allow",
             "Principal": {
                 "AWS": [
-                    "arn:aws:iam::<CHANGE_ME>:role/ECRLogin"
+                    "<CHANGE_ME>"
                 ]
             },
             "Action": [

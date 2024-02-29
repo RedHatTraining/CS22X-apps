@@ -4,7 +4,7 @@
         {
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::<CHANGE_ME>:oidc-provider/<CHANGE_ME>"
+                "Federated": "<CHANGE_ME>"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
