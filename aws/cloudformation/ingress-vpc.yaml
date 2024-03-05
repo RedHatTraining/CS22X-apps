@@ -1,0 +1,642 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  This template creates the ingress VPC, a Network Firewall, and a Network Load
+  Balancer.
+  The template connects the VPC to the transit gateway for the course.
+
+Parameters:
+  RosaStackName:
+    Description: >
+      Name of the stack that deployed the AWS infrastructure for the
+      ROSA cluster.
+    Type: String
+  pIngressVpcCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.0.0/16
+    Description: Ingress VPC CIDR block (10.3.0.0/16 for example).
+    Type: String
+  pTgwSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.1.0/24
+    Description: >
+      CIDR block for the private subnet connected to the transit gateway
+      (10.1.1.0/24 for example).
+    Type: String
+  pIngressVpcNLBSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.0.0/24
+    Description: >
+      CIDR block for the Network Load Balancer subnet of the ingress VPC
+      (10.3.0.0/24 for example).
+    Type: String
+  pIngressVpcFirewallSubnetCidrBlock:
+    AllowedPattern: '((\d{1,3})\.){3}\d{1,3}/\d{1,2}'
+    Default: 10.3.3.0/24
+    Description: >
+      CIDR block for the Network Firewall subnet in the ingress VPC
+      (10.3.3.0/24 for example).
+    Type: String
+
+Resources:
+  # Ingress VPC
+  rIngressVpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: pIngressVpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-vpc"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+
+  # Update the default Network ACL to deny all traffic
+  rInboundDefaultNetworkACLRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rIngressVpc
+          - DefaultNetworkAcl
+      RuleNumber: 60
+      Protocol: -1
+      RuleAction: deny
+      CidrBlock: 0.0.0.0/0
+  rOutboundDefaultNetworkACLRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Fn::GetAtt:
+          - rIngressVpc
+          - DefaultNetworkAcl
+      RuleNumber: 60
+      Egress: true
+      Protocol: -1
+      RuleAction: deny
+      CidrBlock: 0.0.0.0/0
+
+  # Private subnet connected to the transit gateway
+  rTgwSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      CidrBlock:
+        Ref: pTgwSubnetCidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-tgw-subnet"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+
+  # Network Load Balancer subnet
+  rIngressVpcNLBSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      CidrBlock:
+        Ref: pIngressVpcNLBSubnetCidrBlock
+      # Uses the first AZ available
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-nlb-subnet"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+
+  # Firewall subnet
+  rIngressVpcFirewallSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: rIngressVpc
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      CidrBlock:
+        Ref: pIngressVpcFirewallSubnetCidrBlock
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-firewall-subnet"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+
+  # Network ACLs for the public (firewall) and the transit gateway
+  # subnets (allow all). See the best practices:
+  # https://docs.aws.amazon.com/vpc/latest/tgw/tgw-best-design-practices.html
+  rNetworkAclAll:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-all-nacl"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rNetworkAclAssociationTgwSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn:
+      - rTgwSubnet
+      - rNetworkAclAll
+    Properties:
+      SubnetId:
+        Ref: rTgwSubnet
+      NetworkAclId:
+        Ref: rNetworkAclAll
+  rNetworkAclAssociationPublicSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn:
+      - rIngressVpcFirewallSubnet
+      - rNetworkAclAll
+    Properties:
+      SubnetId:
+        Ref: rIngressVpcFirewallSubnet
+      NetworkAclId:
+        Ref: rNetworkAclAll
+  rInboundTgwNetworkACLRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclAll
+      RuleNumber: 60
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+  rOutboundTgwNetworkACLRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclAll
+      RuleNumber: 60
+      Egress: true
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+
+  # Network ACLs for the Network Load Balancer subnet
+  rNetworkAclNLB:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-nlb-nacl"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rNetworkAclAssociationRosaVpcPrivateSubnet:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    DependsOn:
+      - rIngressVpcNLBSubnet
+      - rNetworkAclNLB
+    Properties:
+      SubnetId:
+        Ref: rIngressVpcNLBSubnet
+      NetworkAclId:
+        Ref: rNetworkAclNLB
+  rInboundNetworkACLRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclNLB
+      RuleNumber: 50
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 1024
+        To: 65535
+  rInboundNetworkACLRule2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclNLB
+      RuleNumber: 51
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 80
+        To: 80
+  rInboundNetworkACLRule3:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclNLB
+      RuleNumber: 52
+      Protocol: 6
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: 443
+        To: 443
+  # Allow all outbound traffic
+  rOutboundNetworkACLRule1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId:
+        Ref: rNetworkAclNLB
+      RuleNumber: 60
+      Egress: true
+      Protocol: -1
+      RuleAction: allow
+      CidrBlock: 0.0.0.0/0
+
+  # Internet gateway
+  rInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-igw"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rInternetGatewayIngressAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      InternetGatewayId:
+        Ref: rInternetGateway
+
+  # Network Firewall
+  rIngressFirewall:
+    Type: AWS::NetworkFirewall::Firewall
+    Properties:
+      FirewallName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ingress-firewall"
+      VpcId:
+        Ref: rIngressVpc
+      SubnetMappings:
+        - SubnetId:
+            Ref: rIngressVpcFirewallSubnet
+      DeleteProtection: false
+      FirewallPolicyChangeProtection: false
+      SubnetChangeProtection: false
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-firewall"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+      Description: Network Firewall for Ingress VPC
+      FirewallPolicyArn:
+        Ref: rIngressFirewallPolicy
+  rIngressFirewallPolicy:
+    Type: AWS::NetworkFirewall::FirewallPolicy
+    Properties:
+      FirewallPolicyName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ingress-firewall-policy"
+      FirewallPolicy:
+        StatelessDefaultActions:
+          - "aws:forward_to_sfe"
+        StatelessFragmentDefaultActions:
+          - "aws:forward_to_sfe"
+        StatefulRuleGroupReferences:
+          - ResourceArn:
+              Ref: rIngressFirewallRuleGroup1
+      Description: Stateful rule group for Network Firewall
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-firewall-policy"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rIngressFirewallRuleGroup1:
+    Type: "AWS::NetworkFirewall::RuleGroup"
+    Properties:
+      Capacity: "100"
+      RuleGroupName:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ingress-firewall-rule-group1"
+      Type: "STATEFUL"
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-firewall-rule-group1"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+      RuleGroup:
+        RulesSource:
+          StatefulRules:
+            - Action: DROP
+              Header:
+                Protocol: TCP
+                Source: ANY
+                SourcePort: ANY
+                Direction: FORWARD
+                Destination: ANY
+                DestinationPort: ANY
+              RuleOptions:
+                - Keyword: sid
+                  Settings:
+                    - '10'
+                - Keyword: flow
+                  Settings:
+                    - from_client
+                    - established
+
+  # Network Load Balancer
+  rIngressNetworkLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn: rInternetGatewayIngressAttachment
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Fn::ImportValue:
+                !Join [":", [!Ref RosaStackName, RosaClusterName]]
+            - "-ingress-nlb"
+      Scheme: internet-facing
+      Subnets:
+        - Ref: rIngressVpcNLBSubnet
+      Type: network
+      Tags:
+        - Key: "Name"
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-nlb"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+
+  # Transit Gateway Attachment to the transit gateway created in the previous
+  # stack
+  rIngressVpcTransitGatewayAttachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    DependsOn:
+      - rTgwSubnet
+      - rIngressVpc
+    Properties:
+      SubnetIds:
+        - Ref: rTgwSubnet
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
+      VpcId:
+        Ref: rIngressVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-tgw-attachment"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+
+  # Transit gateway route table
+  rIngressTransitGatewayRouteTable:
+    Type: AWS::EC2::TransitGatewayRouteTable
+    Properties:
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-tgw-rt"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rIngressTransitGatewayRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    DependsOn:
+      - rIngressVpcTransitGatewayAttachment
+      - rIngressTransitGatewayRouteTable
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: rIngressVpcTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Ref: rIngressTransitGatewayRouteTable
+  # Route to the ROSA VPC
+  rPropagateRosaVPCRoute:
+    Type: AWS::EC2::TransitGatewayRouteTablePropagation
+    DependsOn: rIngressTransitGatewayRouteTable
+    Properties:
+      TransitGatewayAttachmentId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, TransitGatewayRosaAttachment]]
+      TransitGatewayRouteTableId:
+        Ref: rIngressTransitGatewayRouteTable
+  # Route from the ROSA VPC to the ingress VPC
+  rIngressTransitGatewayRoute:
+    Type: AWS::EC2::TransitGatewayRoute
+    DependsOn: rIngressVpcTransitGatewayAttachment
+    Properties:
+      DestinationCidrBlock:
+        Ref: pIngressVpcCidrBlock
+      TransitGatewayAttachmentId:
+        Ref: rIngressVpcTransitGatewayAttachment
+      TransitGatewayRouteTableId:
+        Fn::ImportValue:
+          !Join [":", [!Ref RosaStackName, TransitGatewayRosaRouteTable]]
+
+  # Internet Gateway route table
+  rIngressIGRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-ig-rt"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rIngressIGRouteTableAssociation:
+    Type: AWS::EC2::GatewayRouteTableAssociation
+    DependsOn: rInternetGateway
+    Properties:
+      GatewayId:
+        Ref: rInternetGateway
+      RouteTableId:
+        Ref: rIngressIGRouteTable
+  # Route from the Internet Gateway to the network firewall
+  rIngressIGToFirewallRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rIngressFirewall
+    Properties:
+      RouteTableId:
+        Ref: rIngressIGRouteTable
+      DestinationCidrBlock:
+        Ref: pIngressVpcNLBSubnetCidrBlock
+        # Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+      VpcEndpointId:
+        !Select [
+          1,
+          !Split [":", !Select [0, !GetAtt rIngressFirewall.EndpointIds]],
+        ]
+
+  # Firewall subnet route table
+  rIngressVPCFirewallRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-firewall-rt"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rIngressVPCFirewallRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: rIngressVpcFirewallSubnet
+    Properties:
+      SubnetId:
+        Ref: rIngressVpcFirewallSubnet
+      RouteTableId:
+        Ref: rIngressVPCFirewallRouteTable
+  # Route from the firewall subnet to the internet gateway
+  rIngressFirewallToIGRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rInternetGateway
+    Properties:
+      RouteTableId:
+        Ref: rIngressVPCFirewallRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: rInternetGateway
+
+  # Network Load Balancer subnet route table
+  rIngressVPCNLBRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: rIngressVpc
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Fn::ImportValue:
+                    !Join [":", [!Ref RosaStackName, RosaClusterName]]
+                - "-ingress-nlb-rt"
+        - Key: "redhattraining:course-sku"
+          Value: CS220-IngressVpc
+  rIngressVPCNLBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: rIngressVpcNLBSubnet
+    Properties:
+      SubnetId:
+        Ref: rIngressVpcNLBSubnet
+      RouteTableId:
+        Ref: rIngressVPCNLBRouteTable
+  # Route from the NLB subnet to the network firewall
+  rIngressNLBToFirewallRoute:
+    Type: AWS::EC2::Route
+    DependsOn: rIngressFirewall
+    Properties:
+      RouteTableId:
+        Ref: rIngressVPCNLBRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      VpcEndpointId:
+        !Select [
+          1,
+          !Split [":", !Select [0, !GetAtt rIngressFirewall.EndpointIds]],
+        ]
+  # Route from the NLB subnet to the ROSA VPC via the TGW
+  rEgressNLBToTGWRoute:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - rIngressVPCNLBRouteTable
+      - rIngressVpcTransitGatewayAttachment
+    Properties:
+      RouteTableId:
+        Ref: rIngressVPCNLBRouteTable
+      DestinationCidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
+      TransitGatewayId:
+        Fn::ImportValue: !Join [":", [!Ref RosaStackName, TransitGateway]]
+
+Outputs:
+  oIngressVpc:
+    Description: Ingress VPC
+    Value:
+      Ref: rIngressVpc

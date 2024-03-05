@@ -463,6 +463,7 @@ Resources:
               - "www.okd.io"
               - "www.redhat.com"
               - "aws.amazon.com"
+              - ".cloudfront.net"
               - "catalog.redhat.com"
               - "cert-api.access.redhat.com"
               - "api.access.redhat.com"
