@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-efs-read
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: test-efs-read
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: test-efs-read
+    spec:
+      securityContext:
+        allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      runAsNonRoot: true
+      runAsUser: 1001060000
+      containers:
+        - name: test-efs-read
+          image: centos
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "tail -f /mnt/efs-data/verify-efs" ]
+          volumeMounts:
+            - name: efs-storage-vol
+              mountPath: /mnt/efs-data
+      volumes:
+      - name: efs-storage-vol
+        persistentVolumeClaim:
+          claimName: pvc-efs-volume
