@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: hello-world
-          image: <CHANGE_ME>.dkr.ecr.<CHANGE_ME>.amazonaws.com/cs221-hello-world:v1.0
+          image: 
+            <CHANGE_ME>.dkr.ecr.<CHANGE_ME>.amazonaws.com/cs221-hello-world:v1.0
           resources:
             requests:
               memory: 500Mi
