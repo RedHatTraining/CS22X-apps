@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: test-efs
+  name: test-efs-write
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: test-efs
+      app.kubernetes.io/name: test-efs-write
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: test-efs
+        app.kubernetes.io/name: test-efs-write
     spec:
       securityContext:
         allowPrivilegeEscalation: false
