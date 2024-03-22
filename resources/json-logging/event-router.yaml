@@ -4,7 +4,7 @@ kind: Template
 metadata:
   name: eventrouter-template
   annotations:
-    description: "Forwardevents to OpenShift Logging stack."
+    description: "Forward events to OpenShift Logging stack."
     tags: "events,EFK,logging,cluster-logging"
 objects:
   - kind: ServiceAccount
