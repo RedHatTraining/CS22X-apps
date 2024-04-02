@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,18 +17,19 @@ spec:
         allowPrivilegeEscalation: false
       capabilities:
         drop:
-        - ALL
+          - ALL
       runAsNonRoot: true
       runAsUser: 1001060000
       containers:
         - name: app
           image: centos
           command: ["/bin/sh"]
-          args: ["-c", "while true; do echo $(date -u) >> /data/out.txt; sleep 5; done"]
+          args: ["-c", "while true; do echo $(date -u) >>
+                 /data/out.txt; sleep 5; done"]
           volumeMounts:
             - name: efs-storage-vol
               mountPath: /mnt/efs-data
       volumes:
-      - name: efs-storage-vol
-        persistentVolumeClaim:
+        - name: efs-storage-vol
+          persistentVolumeClaim:
           claimName: pvc-efs-volume
