@@ -553,7 +553,7 @@ Resources:
     Properties:
       AutoAcceptSharedAttachments: disable
       DnsSupport: enable
-      DefaultRouteTableAssociation: enable
+      DefaultRouteTableAssociation: disable
       DefaultRouteTablePropagation: enable
       Tags:
         - Key: Name
