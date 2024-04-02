@@ -1,0 +1,25 @@
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Policy
+metadata:
+  name: sqs-policy
+spec:
+  name: cs221<CHANGE_ME>-sqs-policy
+  description: Allows sending messages to an Amazon SQS queue
+  policyDocument: >
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "sqs:SendMessage",
+            "sqs:GetQueueUrl"
+          ],
+          "Resource": "arn:aws:sqs:<CHANGE_ME>:<CHANGE_ME>:cs221<CHANGE_ME>"
+        }
+      ]
+    }
+  tags:
+    - key: redhattraining:exercise
+      value: services-ack-infra
