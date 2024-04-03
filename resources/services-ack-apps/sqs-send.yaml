@@ -10,7 +10,7 @@ items:
         app: sqs-send
       name: sqs-send
     stringData:
-      queue-name: <CHANGE_ME>
+      queue-name: cs221<CHANGE_ME>
       region: <CHANGE_ME>
   - apiVersion: apps/v1
     kind: Deployment
@@ -55,3 +55,4 @@ items:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+          serviceAccountName: sqs-sa
