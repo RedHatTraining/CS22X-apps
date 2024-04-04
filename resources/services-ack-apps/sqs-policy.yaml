@@ -16,7 +16,7 @@ spec:
             "sqs:SendMessage",
             "sqs:GetQueueUrl"
           ],
-          "Resource": "arn:aws:sqs:<CHANGE_ME>:<CHANGE_ME>:cs221<CHANGE_ME>"
+          "Resource": "<CHANGE_ME>"
         }
       ]
     }
