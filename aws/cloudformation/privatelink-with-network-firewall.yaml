@@ -478,6 +478,7 @@ Resources:
               - "api.openshift.com"
               - "api.pagerduty.com"
               - "events.pagerduty.com"
+              - "developer.pagerduty.com"
               - "api.deadmanssnitch.com"
               - "nosnch.in"
               - "http-inputs-osdsecuritylogs.splunkcloud.com"
