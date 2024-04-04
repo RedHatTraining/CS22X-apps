@@ -1,0 +1,33 @@
+---
+apiVersion: iam.services.k8s.aws/v1alpha1
+kind: Role
+metadata:
+  name: sqs-role
+spec:
+  name: cs221<CHANGE_ME>-sqs-role
+  description: IAM role for service account (IRSA) to send messages to SQS
+  assumeRolePolicyDocument: >
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "<CHANGE_ME>"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "<CHANGE_ME>:sub":
+                "system:serviceaccount:services-ack-apps:sqs-sa"
+            }
+          }
+        }
+      ]
+    }
+  policyRefs:
+    - from:
+        name: sqs-policy
+  tags:
+    - key: redhattraining:exercise
+      value: services-ack-apps

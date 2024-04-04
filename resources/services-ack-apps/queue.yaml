@@ -1,0 +1,10 @@
+---
+apiVersion: sqs.services.k8s.aws/v1alpha1
+kind: Queue
+metadata:
+  name: myqueue
+spec:
+  queueName: <CHANGE_ME>
+  delaySeconds: "0"
+  tags:
+    redhattraining:exercise: services-ack-apps
