@@ -29,7 +29,7 @@ spec:
             {}
           image: "quay.io/redhattraining/etherpad:latest"
           imagePullPolicy: IfNotPresent
-            ports:
+          ports:
             - name: http
               containerPort: 9001
               protocol: TCP
@@ -37,19 +37,19 @@ spec:
             httpGet:
               path: /
               port: http
-            readinessProbe:
+          readinessProbe:
             httpGet:
               path: /
               port: http
-            resources:
+          resources:
             {}
-            volumeMounts:
+          volumeMounts:
             - name: etherpad-data
               mountPath: /opt/etherpad-lite/var
       volumes:
-      - name: etherpad-data
-        persistentVolumeClaim:
-          claimName: etherpad
+        - name: etherpad-data
+          persistentVolumeClaim:
+            claimName: etherpad
 ---
 apiVersion: v1
 kind: Service
@@ -101,5 +101,5 @@ spec:
     name: etherpad
     weight: 100
   tls:
-   insecureEdgeTerminationPolicy: Redirect
-   termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
