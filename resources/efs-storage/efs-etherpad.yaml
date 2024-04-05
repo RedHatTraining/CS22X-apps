@@ -1,0 +1,105 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etherpad
+  labels:
+    app.kubernetes.io/name: etherpad
+    app.kubernetes.io/version: "latest"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: etherpad
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: etherpad
+    spec:
+      securityContext:
+        {}
+      containers:
+        - env:
+            - name: TITLE
+              value: CS221 Etherpad
+            - name: DEFAULT_PAD_TEXT
+              value: Etherpad for sharing ideas between the students.
+            - name: etherpad
+          securityContext:
+            {}
+          image: "quay.io/redhattraining/etherpad:latest"
+          imagePullPolicy: IfNotPresent
+            ports:
+            - name: http
+              containerPort: 9001
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            resources:
+            {}
+            volumeMounts:
+            - name: etherpad-data
+              mountPath: /opt/etherpad-lite/var
+      volumes:
+      - name: etherpad-data
+        persistentVolumeClaim:
+          claimName: etherpad
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: etherpad
+  labels:
+    app.kubernetes.io/name: etherpad
+    app.kubernetes.io/version: "latest"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9001
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: etherpad
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: etherpad
+  labels:
+    app.kubernetes.io/name: etherpad
+    app.kubernetes.io/version: "latest"
+spec:
+  accessModes:
+    - "ReadWriteMany"
+  resources:
+    requests:
+      storage: "125Gi"
+  storageClassName: efs-sc
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    openshift.io/host.generated: "true"
+  name: etherpad
+  labels:
+    app.kubernetes.io/name: etherpad
+    app.kubernetes.io/version: "latest"
+spec:
+  host:
+  port:
+    targetPort: http
+  to:
+    kind: Service
+    name: etherpad
+    weight: 100
+  tls:
+   insecureEdgeTerminationPolicy: Redirect
+   termination: edge
