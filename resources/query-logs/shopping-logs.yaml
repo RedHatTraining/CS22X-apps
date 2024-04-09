@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: List
+metadata: {}
+items:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: shopping-logs
+      name: shopping-logs
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: shopping-logs
+      template:
+        metadata:
+          labels:
+            app: shopping-logs
+        spec:
+          containers:
+            - name: shopping-logs
+              image: quay.io/redhattraining/cs22x-shopping-logs:v1.0
+              resources:
+                requests:
+                  memory: 100Mi
+              securityContext:
+                capabilities:
+                  drop:
+                    - ALL
+                allowPrivilegeEscalation: false
+              imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
