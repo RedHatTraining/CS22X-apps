@@ -20,10 +20,10 @@ spec:
         {}
       containers:
         - env:
-          - name: TITLE
-            value: CS221 Etherpad
-          - name: DEFAULT_PAD_TEXT
-            value: Etherpad for sharing ideas between the students.
+            - name: TITLE
+              value: CS221 Etherpad
+            - name: DEFAULT_PAD_TEXT
+              value: Etherpad for sharing ideas between the students.
           name: etherpad
           securityContext:
             {}
@@ -47,9 +47,9 @@ spec:
             - name: etherpad-data
               mountPath: /opt/etherpad-lite/var
       volumes:
-      - name: etherpad-data
-        persistentVolumeClaim:
-          claimName: etherpad
+        - name: etherpad-data
+          persistentVolumeClaim:
+            claimName: etherpad
 ---
 apiVersion: v1
 kind: Service
@@ -101,5 +101,5 @@ spec:
     name: etherpad
     weight: 100
   tls:
-   insecureEdgeTerminationPolicy: Redirect
-   termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+    termination: edge
