@@ -5,3 +5,4 @@ rules:
   line-length:
     ignore:
       - "*secret*.yml"
+      - resources/efs-storage/aws-efs-csi-driver-operator.yaml
