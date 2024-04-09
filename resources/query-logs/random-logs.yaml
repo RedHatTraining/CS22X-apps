@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: List
+metadata: {}
+items:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      labels:
+        app: random-logs
+      name: random-logs
+    stringData:
+      SHOULD_BREAK: "false"
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: random-logs
+      name: random-logs
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app: random-logs
+      template:
+        metadata:
+          labels:
+            app: random-logs
+        spec:
+          containers:
+            - name: random-logs
+              image: quay.io/redhattraining/cs22x-random-logs:v1.0
+              env:
+                - name: SHOULD_BREAK
+                  valueFrom:
+                    secretKeyRef:
+                      key: SHOULD_BREAK
+                      name: random-logs
+              resources:
+                requests:
+                  memory: 100Mi
+              securityContext:
+                capabilities:
+                  drop:
+                    - ALL
+                allowPrivilegeEscalation: false
+              imagePullPolicy: Always
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+
