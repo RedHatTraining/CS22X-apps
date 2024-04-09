@@ -25,6 +25,7 @@ spec:
             - name: DEFAULT_PAD_TEXT
               value: Etherpad for sharing ideas between the students.
             - name: etherpad
+          name: etherpad
           securityContext:
             {}
           image: "quay.io/redhattraining/etherpad:latest"
