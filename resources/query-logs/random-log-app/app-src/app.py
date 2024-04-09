@@ -84,12 +84,14 @@ LOG_MESSAGES = {
 # Configure logging to output in JSON format
 logging.basicConfig(level=logging.INFO, format='{"timestamp": "%(asctime)s", "level": "%(levelname)s", "message": %(message)s}')
 
+# Ensure all levels are enabled
+logging.root.setLevel(logging.NOTSET)
+
 def generate_log(should_break):
     if should_break:
-        levels = ['ERROR', 'DEBUG']
+        level = random.choice(['ERROR', 'DEBUG'])
     else:
-        levels = ['INFO', 'WARNING']
-    level = random.choice(levels)
+        level = random.choice(['INFO', 'WARNING'])
     message = random.choice(LOG_MESSAGES[level])
     logging.log(level=logging.getLevelName(level), msg=json.dumps(message))
 
