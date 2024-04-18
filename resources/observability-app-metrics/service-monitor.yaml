@@ -1,0 +1,15 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: metrics-shop
+  name: metrics-shop
+spec:
+  endpoints:
+  - interval: 30s
+    port: web
+    scheme: http
+  selector:
+    matchLabels:
+      app: metrics-shop
