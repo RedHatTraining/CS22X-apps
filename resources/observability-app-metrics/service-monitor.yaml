@@ -7,9 +7,9 @@ metadata:
   name: metrics-shop
 spec:
   endpoints:
-  - interval: 30s
-    port: web
-    scheme: http
+    - interval: 30s
+      port: web
+      scheme: http
   selector:
     matchLabels:
       app: metrics-shop

@@ -49,4 +49,3 @@ items:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
-
