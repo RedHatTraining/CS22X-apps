@@ -1,0 +1,62 @@
+---
+apiVersion: v1
+kind: List
+metadata: {}
+items:
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app: metrics-shop
+      name: metrics-shop
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app: metrics-shop
+      template:
+        metadata:
+          labels:
+            app: metrics-shop
+        spec:
+          containers:
+            - name: metrics-shop
+              image: quay.io/redhattraining/cs22x-metrics-shop:v1.0
+              resources:
+                requests:
+                  memory: 100Mi
+              ports:
+                - containerPort: 8080
+              readinessProbe:
+                initialDelaySeconds: 10
+                httpGet:
+                  path: /health
+                  port: 8080
+              livenessProbe:
+                initialDelaySeconds: 20
+                httpGet:
+                  path: /health
+                  port: 8080
+              securityContext:
+                capabilities:
+                  drop:
+                    - ALL
+                allowPrivilegeEscalation: false
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app: metrics-shop
+      name: metrics-shop
+    spec:
+      ports:
+        - protocol: TCP
+          port: 8080
+          targetPort: 8080
+          name: web
+      selector:
+        app: metrics-shop
