@@ -4,12 +4,12 @@
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+        "Federated": "<CHANGE_ME>"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "${OIDC_PROVIDER}:sub": [
+          "<CHANGE_ME>:sub": [
             "system:serviceaccount:openshift-cluster-csi-drivers:aws-efs-csi-driver-operator",
             "system:serviceaccount:openshift-cluster-csi-drivers:aws-efs-csi-driver-controller-sa"
           ]
