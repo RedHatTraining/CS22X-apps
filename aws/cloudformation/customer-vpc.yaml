@@ -826,6 +826,9 @@ Resources:
           # Download and install the cert-manager cmctl command
           curl -L https://github.com/cert-manager/cmctl/releases/download/v2.0.0-alpha.1/cmctl_linux_amd64 -o /usr/local/sbin/cmctl
           chmod a+x /usr/local/sbin/cmctl
+          # Download and install the helm command
+          curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/sbin/helm
+          chmod a+x /usr/local/sbin/helm
           # Change the password for the ec2-user
           echo "redhat123" | passwd ec2-user --stdin
           # Generate the certificate for xrdp
