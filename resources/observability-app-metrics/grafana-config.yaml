@@ -3,7 +3,8 @@ serviceAccount:
   create: true
   name: grafana-sa
   annotations:
-    eks.amazonaws.com/role-arn: <CHANGE_ME>
+    eks.amazonaws.com/role-arn:
+      <CHANGE_ME>
 securityContext:
   runAsUser: null
   runAsGroup: null
