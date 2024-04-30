@@ -505,10 +505,15 @@ Resources:
                 - Ref: pRosaVpcCidrBlock
         RulesSource:
           RulesString: >
-            pass tls $HOME_NET any -> $EXTERNAL_NET 9997 (tls.cert_subject;
-            dotprefix; content:".osdsecuritylogs.splunkcloud.com"; endswith;
+            pass tls $HOME_NET any -> $EXTERNAL_NET 9997 (
             msg:"Pass TLS to .osdsecuritylogs.splunkcloud.com";
             sid:1004; rev:1;)
+          # The following rule does not work anymore in RHOSP 4.14
+          # RulesString: >
+          #   pass tls $HOME_NET any -> $EXTERNAL_NET 9997 (tls.cert_subject;
+          #   dotprefix; content:".osdsecuritylogs.splunkcloud.com"; endswith;
+          #   msg:"Pass TLS to .osdsecuritylogs.splunkcloud.com";
+          #   sid:1004; rev:1;)
 
   rEgressFirewallRuleGroup3:
     Type: "AWS::NetworkFirewall::RuleGroup"
