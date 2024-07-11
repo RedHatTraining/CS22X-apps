@@ -1,0 +1,62 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: This template creates an Amazon S3 bucket.
+
+Parameters:
+  RosaClusterName:
+    MinLength: 4
+    MaxLength: 15
+    AllowedPattern: "[a-z][-a-z0-9]*[a-z0-9]"
+    Description: >
+      Name of your ROSA cluster.
+      That parameter is used to tag the AWS resources that this template
+      creates.
+    ConstraintDescription: >
+      A cluster name must consist of no more than 15 lowercase alphanumeric
+      characters or '-', start with a letter, and end with an alphanumeric
+      character.
+    Type: String
+
+Resources:
+  # Sample S3 bucket as a static web site
+  rTestBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+  # Enable public access
+  rBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket:
+        Ref: rTestBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource:
+              Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Ref: rTestBucket
+                  - '/*'
+
+Outputs:
+  oTestBucket:
+    Description: S3 bucket ID
+    Value:
+      Ref: rTestBucket
+  oTestBucketURL:
+    Description: S3 bucket URL
+    Value:
+      Fn::GetAtt:
+        - rTestBucket
+        - WebsiteURL
