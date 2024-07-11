@@ -1,0 +1,1 @@
+Hello, World (Amazon S3 bucket)
