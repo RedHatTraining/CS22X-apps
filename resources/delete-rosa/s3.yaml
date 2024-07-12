@@ -29,6 +29,18 @@ Resources:
         RestrictPublicBuckets: false
       WebsiteConfiguration:
         IndexDocument: index.html
+      Tags:
+        - Key: "redhattraining:cluster"
+          Value:
+            Ref: RosaClusterName
+        - Key: "redhattraining:application"
+          Value: s3-image-processing
+        - Key: "redhattraining:course-sku"
+          Value: CS120
+        - Key: "redhattraining:environment"
+          Value: development
+        - Key: "redhattraining:costcenter"
+          Value: "0451"
 
   # Enable public access
   rBucketPolicy:
