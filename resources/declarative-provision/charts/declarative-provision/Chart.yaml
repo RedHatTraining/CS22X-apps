@@ -1,0 +1,5 @@
+---
+apiVersion: v2
+name: declarative-provision
+description: A Helm chart that prepares an OpenShift project for developers
+version: 0.1.0

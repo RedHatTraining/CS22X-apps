@@ -1,0 +1,22 @@
+---
+# Default values for declarative-provision.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+namespace: <CHANGE_ME>
+groupName: <CHANGE_ME>
+
+resourceQuotas:
+  pods: 8
+  requests:
+    cpu: 1
+    memory: 1Gi
+  limits:
+    cpu: 2
+    memory: 2Gi
+
+allowedNamespaceLabels:
+  - name: policy-group.network.openshift.io/ingress
+    value: ""
+  - name: network.openshift.io/policy-group
+    value: monitoring
