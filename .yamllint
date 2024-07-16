@@ -6,3 +6,6 @@ rules:
     ignore:
       - "*secret*.yml"
       - resources/efs-storage/aws-efs-csi-driver-operator.yaml
+
+ignore:
+  - resources/declarative-provision/charts/declarative-provision/templates/*.yaml
