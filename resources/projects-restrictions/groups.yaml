@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: List
+metadata: {}
+items:
+  - apiVersion: user.openshift.io/v1
+    kind: Group
+    metadata:
+      name: operators
+    users:
+      - ophelie
+  - apiVersion: user.openshift.io/v1
+    kind: Group
+    metadata:
+      name: developers
+    users:
+      - devin
