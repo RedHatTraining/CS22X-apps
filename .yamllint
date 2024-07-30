@@ -9,3 +9,4 @@ rules:
 
 ignore:
   - resources/declarative-provision/charts/declarative-provision/templates/*.yaml
+  - resources/projects-self-service/template-solution.yaml
