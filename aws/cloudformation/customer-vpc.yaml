@@ -817,7 +817,7 @@ Resources:
           #!/bin/bash -xe
           exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
           # Download and install the oc and kubectl command
-          curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux.tar.gz -o /tmp/openshift-client-linux.tar.gz
+          curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-client-linux-amd64-rhel8.tar.gz -o /tmp/openshift-client-linux.tar.gz
           tar -xzvf /tmp/openshift-client-linux.tar.gz -C /usr/local/sbin/ oc kubectl
           # Download and install the rosa command
           curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/rosa/latest/rosa-linux.tar.gz -o /tmp/rosa-linux.tar.gz
