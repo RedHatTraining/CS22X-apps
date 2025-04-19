@@ -1,10 +1,10 @@
 ---
-namespace: <CHANGE_ME>
+namespace: intranet-front
 
 groups:
-  - name: <CHANGE_ME>
+  - name: intranet-devs
     role: edit
-  - name: <CHANGE_ME>
+  - name: intranet-managers
     role: view
 
 resourceQuotas:
