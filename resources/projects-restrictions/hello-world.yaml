@@ -21,7 +21,7 @@ items:
         spec:
           containers:
             - name: hello-world
-              image: quay.io/redhattraining/hello-world-nginx:v1.0
+              image: quay.io/redhattraining/hello-openshift:latest
               resources:
                 requests:
                   memory: 100Mi
