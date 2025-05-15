@@ -484,6 +484,7 @@ Resources:
               - "ocm-quay-production-s3.s3.amazonaws.com"
               - "quayio-production-s3.s3.amazonaws.com"
               - "cart-rhcos-ci.s3.amazonaws.com"
+              - "oidc.op1.openshiftapps.com"
               - "openshift.org"
               - "access.redhat.com"
               - "registry.access.redhat.com"
