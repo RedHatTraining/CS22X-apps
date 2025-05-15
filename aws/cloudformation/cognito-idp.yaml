@@ -36,7 +36,8 @@ Resources:
           MinimumLength: 6
           TemporaryPasswordValidityDays: 365
       UserPoolTags:
-        "redhattraining:course-sku": CS220-cognito
+        "redhattraining:course-sku": CS22X
+        "redhattraining:role": cognito
   # Create user pool Domain
   rCognitoUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
