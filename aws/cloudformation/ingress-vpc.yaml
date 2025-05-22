@@ -56,7 +56,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-vpc"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
 
   # Update the default Network ACL to deny all traffic
   rInboundDefaultNetworkACLRule:
@@ -105,7 +107,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-tgw-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
 
   # Network Load Balancer subnet
   rIngressVpcNLBSubnet:
@@ -129,7 +133,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-nlb-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
 
   # Firewall subnet
   rIngressVpcFirewallSubnet:
@@ -153,7 +159,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-firewall-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
 
   # Network ACLs for the public (firewall) and the transit gateway
   # subnets (allow all). See the best practices:
@@ -172,7 +180,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-all-nacl"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rNetworkAclAssociationTgwSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -228,7 +238,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-nlb-nacl"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rNetworkAclAssociationRosaVpcPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -300,7 +312,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-igw"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rInternetGatewayIngressAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -336,7 +350,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-firewall"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
       Description: Network Firewall for Ingress VPC
       FirewallPolicyArn:
         Ref: rIngressFirewallPolicy
@@ -367,7 +383,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-firewall-policy"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rIngressFirewallRuleGroup1:
     Type: "AWS::NetworkFirewall::RuleGroup"
     Properties:
@@ -388,7 +406,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-firewall-rule-group1"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
       RuleGroup:
         RulesSource:
           StatefulRules:
@@ -433,7 +453,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-nlb"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
 
   # Transit Gateway Attachment to the transit gateway created in the previous
   # stack
@@ -458,7 +480,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-tgw-attachment"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
 
   # Transit gateway route table
   rIngressTransitGatewayRouteTable:
@@ -475,7 +499,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-tgw-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rIngressTransitGatewayRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     DependsOn:
@@ -524,7 +550,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-ig-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rIngressIGRouteTableAssociation:
     Type: AWS::EC2::GatewayRouteTableAssociation
     DependsOn: rInternetGateway
@@ -564,7 +592,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-firewall-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rIngressVPCFirewallRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rIngressVpcFirewallSubnet
@@ -599,7 +629,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-ingress-nlb-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-IngressVpc
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: ingress
   rIngressVPCNLBRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rIngressVpcNLBSubnet

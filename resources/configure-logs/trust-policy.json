@@ -9,7 +9,7 @@
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
                 "StringEquals": {
-                    "<CHANGE_ME>:sub": "system:serviceaccount:openshift-logging:logcollector"
+                    "<CHANGE_ME>:sub": "system:serviceaccount:openshift-logging:logforwarder"
                 }
             }
         }
