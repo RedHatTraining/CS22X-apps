@@ -81,7 +81,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-private-vpc"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
 
   # Update the default Network ACL to deny all traffic
   rInboundDefaultNetworkACLRule:
@@ -125,7 +127,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-private-tgw-subnet"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
 
   # Network ACLs for the transit gateway subnet (allow all). See best practices
   # https://docs.aws.amazon.com/vpc/latest/tgw/tgw-best-design-practices.html
@@ -138,7 +142,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-private-tgw-nacl"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rNetworkAclAssociationRosaVpcTgwSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -186,7 +192,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-private-subnet"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
 
   # Network ACLs for the private subnet
   rNetworkAclRosaVpcPrivateSubnet:
@@ -198,7 +206,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-private-subnet-nacl"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rNetworkAclAssociationRosaVpcPrivateSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -285,7 +295,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-vpc"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   # Private subnet in the egress VPC connected to the transit gateway
   rEgressVpcTgwSubnet:
     Type: AWS::EC2::Subnet
@@ -303,7 +315,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-tgw-subnet"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   # Firewall subnet in the egress VPC
   rEgressVpcFirewallSubnet:
     Type: AWS::EC2::Subnet
@@ -321,7 +335,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-firewall-subnet"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   # Public subnet in the egress VPC
   rEgressVpcPublicSubnet:
     Type: AWS::EC2::Subnet
@@ -339,7 +355,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-public-subnet"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   # Internet gateway
   rInternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -348,7 +366,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-igw"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rInternetGatewayEgressAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -365,7 +385,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-public-nat-eip"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rNATGateway:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -379,7 +401,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-public-nat"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
 
   # Network Firewall
   rEgressFirewall:
@@ -396,7 +420,9 @@ Resources:
         - Key: "Name"
           Value: !Join ["", [!Ref RosaClusterName, "-firewall"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
       Description: Network Firewall for Egress VPC
       FirewallPolicyArn: !Ref rEgressFirewallPolicy
 
@@ -421,7 +447,9 @@ Resources:
         - Key: "Name"
           Value: !Join ["", [!Ref RosaClusterName, "-firewall-policy"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
 
   rEgressFirewallRuleGroup1:
     Type: "AWS::NetworkFirewall::RuleGroup"
@@ -433,7 +461,9 @@ Resources:
         - Key: "Name"
           Value: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group1"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
       RuleGroup:
         RuleVariables:
           IPSets:
@@ -454,6 +484,7 @@ Resources:
               - "ocm-quay-production-s3.s3.amazonaws.com"
               - "quayio-production-s3.s3.amazonaws.com"
               - "cart-rhcos-ci.s3.amazonaws.com"
+              - "oidc.op1.openshiftapps.com"
               - "openshift.org"
               - "access.redhat.com"
               - "registry.access.redhat.com"
@@ -494,7 +525,9 @@ Resources:
         - Key: "Name"
           Value: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group2"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
       Description: "Allow log forwarding to splunkcloud"
       RuleGroup:
         RuleVariables:
@@ -525,7 +558,9 @@ Resources:
         - Key: "Name"
           Value: !Join ["", [!Ref RosaClusterName, "-firewall-rule-group3"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
       Description: "Allow access to sftp.access.redhat.com"
       RuleGroup:
         RulesSource:
@@ -565,7 +600,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-tgw"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rRosaTransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
@@ -579,7 +616,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-tgw-private-attachment"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rEgressTransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
@@ -593,7 +632,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-tgw-egress-attachment"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
 
   # Transit gateway route table (Egress)
   rTransitGatewayEgressRouteTable:
@@ -605,7 +646,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-tgw-egress-rt"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rEgressTransitGatewayRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     Properties:
@@ -631,7 +674,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-tgw-private-rt"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rRosaTransitGatewayRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     Properties:
@@ -669,7 +714,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-tgw-rt"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rEgressVPCTGWRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rEgressVpcTgwSubnet
@@ -702,7 +749,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-firewall-rt"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rEgressVPCFirewallRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rEgressVpcFirewallSubnet
@@ -745,7 +794,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-egress-public-rt"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rEgressPublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rEgressVpcPublicSubnet
@@ -789,7 +840,9 @@ Resources:
         - Key: Name
           Value: !Join ["", [!Ref RosaClusterName, "-private-rt"]]
         - Key: "redhattraining:course-sku"
-          Value: CS220
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: infrastructure
   rRosaVpcPrivateSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn: rRosaVpcPrivateSubnetRouteTable

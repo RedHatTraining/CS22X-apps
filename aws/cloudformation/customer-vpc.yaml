@@ -80,39 +80,39 @@ Conditions:
 Mappings:
   RegionMap:
     ap-south-1:
-      ami: ami-0e159fc62d940d348
+      ami: ami-00e52cd80f25edd3c
     eu-north-1:
-      ami: ami-078c304ec0afd678a
+      ami: ami-03c2970bdb10a9e99
     eu-west-3:
-      ami: ami-01036613f120414f2
+      ami: ami-0e820eb0af36bdc3e
     eu-west-2:
-      ami: ami-09abb6457c770f890
+      ami: ami-0cd713cef3ae8be07
     eu-west-1:
-      ami: ami-056d2deb35634ac41
+      ami: ami-0ab3344a327377336
     ap-northeast-3:
-      ami: ami-0622ca7378c013ac4
+      ami: ami-02a1d5aeceb0fca52
     ap-northeast-2:
-      ami: ami-0a89dbe9112c9066b
+      ami: ami-0d58142f2dc69c803
     ap-northeast-1:
-      ami: ami-0d61f4c9127f22439
+      ami: ami-0190c0073f61fb37a
     ca-central-1:
-      ami: ami-0fdd2bb78451114e8
+      ami: ami-051d38aaf1eacc9c6
     sa-east-1:
-      ami: ami-007e130096c4060bd
+      ami: ami-0425dce2a8dfcbd8d
     ap-southeast-1:
-      ami: ami-0293d5edd542189e4
+      ami: ami-04c66ebde909439f8
     ap-southeast-2:
-      ami: ami-05b4ba25c34ccdc2d
+      ami: ami-0f1f19bc87f2acf07
     eu-central-1:
-      ami: ami-0db3b3e2b9f049df7
+      ami: ami-0bb482c267f61d918
     us-east-1:
-      ami: ami-02aead0a55359d6ec
+      ami: ami-0b8aeb1889f1a812a
     us-east-2:
-      ami: ami-07d8bd8fbf89bf6dc
+      ami: ami-0d8c288225dc75373
     us-west-1:
-      ami: ami-031f57f3941858674
+      ami: ami-04b393685a14f5011
     us-west-2:
-      ami: ami-0fe551f63319344fa
+      ami: ami-0f996e21f62f8f838
 
 Resources:
   # Customer VPC
@@ -132,7 +132,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-vpc"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Update the default Network ACL to deny all traffic
   rInboundDefaultNetworkACLRule:
@@ -181,7 +183,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-tgw-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Public subnet
   rCustomerVpcPublicSubnet:
@@ -205,7 +209,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-subnet"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Network ACLs for the public and the transit gateway subnet (allow all).
   # See the best practices:
@@ -224,7 +230,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-all-nacl"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rNetworkAclAssociationTgwSubnet:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -288,7 +296,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-a"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   # Second private subnet in the second AZ. This subnet is required to create
   # RDS subnet group.
   rCustomerVpcPrivateSubnetB:
@@ -314,7 +324,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-b"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Network ACLs for the private subnets
   rNetworkAclCustomerVpcPrivateSubnet:
@@ -331,7 +343,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-subnet-nacl"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rNetworkAclAssociationCustomerVpcPrivateSubnetA:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     DependsOn:
@@ -490,7 +504,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-igw"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rInternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     DependsOn: rCustomerVpc
@@ -514,7 +530,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-nat-eip"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rNATGateway:
     Type: AWS::EC2::NatGateway
     DependsOn: rElasticIP
@@ -534,7 +552,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-nat"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Transit Gateway Attachment to the transit gateway created in the previous
   # stack
@@ -559,7 +579,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-tgw-customer-attachment"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   #
   # Route tables
@@ -580,7 +602,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-tgw-customer-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rTransitGatewayCustomerRouteTableAssociation:
     Type: AWS::EC2::TransitGatewayRouteTableAssociation
     DependsOn:
@@ -630,7 +654,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-private-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rCustomerVpcPrivateRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -683,7 +709,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-public-rt"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
   rCustomerPublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
@@ -731,7 +759,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-ec2-keypair"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Security Group for bastion
   rSecurityGroupBastion:
@@ -751,7 +781,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-bastion-sg"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
       SecurityGroupIngress:
         - CidrIp:
             Ref: pSshSourceAllowed
@@ -784,7 +816,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-connect-endpoint"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # Bastion EC2 instance
   rBastionHost:
@@ -824,7 +858,7 @@ Resources:
           tar -xzvf  /tmp/rosa-linux.tar.gz -C /usr/local/bin/ rosa
           cd /tmp && curl -L https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip && unzip awscliv2.zip && ./aws/install
           # Download and install the cert-manager cmctl command
-          curl -L https://github.com/cert-manager/cmctl/releases/download/v2.0.0-alpha.1/cmctl_linux_amd64 -o /usr/local/sbin/cmctl
+          curl -L https://github.com/cert-manager/cmctl/releases/download/v2.2.0/cmctl_linux_amd64 -o /usr/local/sbin/cmctl
           chmod a+x /usr/local/sbin/cmctl
           # Download and install the helm command
           curl -L https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/sbin/helm
@@ -845,7 +879,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-bastion"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   #
   # RDS instance
@@ -870,7 +906,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-db-sg"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
       SecurityGroupIngress:
         - CidrIp:
             Fn::ImportValue: !Join [":", [!Ref RosaStackName, RosaVpcCidr]]
@@ -897,7 +935,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-db-subnetgroup"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
   # RDS MySQL instance. An application running in your ROSA cluster connects to
   # that database.
@@ -942,7 +982,9 @@ Resources:
                     !Join [":", [!Ref RosaStackName, RosaClusterName]]
                 - "-customer-db"
         - Key: "redhattraining:course-sku"
-          Value: CS220-customerVPC
+          Value: CS22X
+        - Key: "redhattraining:role"
+          Value: customer
 
 Outputs:
   oCustomerVPC:
